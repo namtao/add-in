@@ -39,6 +39,10 @@ INSTALL.md       # thiết lập lần đầu (import module + phát hành bản
 ## Quy trình phát hành bản mới
 
 > Làm trên máy Windows có Excel. Luôn test trên nhánh phụ trước khi đụng `main`.
+> Ai phát hành cũng được (không chỉ chủ repo) miễn có quyền ghi (collaborator)
+> hoặc gửi Pull Request — xem "Người khác muốn phát hành bản mới" trong
+> `INSTALL.md`. Người dùng cuối **không cần làm gì** khi có bản mới, chỉ cần đã
+> cài add-in đúng cách một lần (xem `INSTALL.md` mục 4).
 
 1. Mở `release/LINK.xlam`, VBE (`Alt+F11`).
 2. Sửa `ADDIN_VERSION` trong `modAutoUpdate` sang version mới (ví dụ `1.0.3`).

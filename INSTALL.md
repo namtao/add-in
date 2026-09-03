@@ -46,13 +46,55 @@ Trên một máy test:
 ## 4. Rollout bản gốc tới toàn bộ người dùng (một lần)
 
 Auto-update chỉ chạy được sau khi máy người dùng đã có `modAutoUpdate`. Vì vậy bản
-gốc phải phát tay một lần:
+gốc phải phát tay một lần — **và phải cài đúng cách**, không chỉ mở file bằng
+click đúp:
 
-1. Gửi `release/LINK.xlam` (bản có `modAutoUpdate`) cho tất cả người dùng, hoặc
-   đặt ở nơi hiện đang phân phối add-in.
-2. Người dùng thay add-in cũ bằng file này (gỡ add-in cũ → Browse tới file mới),
-   hoặc ghi đè file `.xlam` ở đúng vị trí đang dùng rồi mở lại Excel.
-3. Từ lần này trở đi, mọi bản mới đẩy lên `release/` sẽ tự về máy họ.
+> **Click đúp vào `.xlam` KHÔNG cài đặt add-in.** Nó chỉ mở file như một
+> workbook ẩn trong phiên Excel đang chạy — ribbon hiện tạm thời, nhưng Excel
+> không ghi vào danh sách add-in và sẽ không tự load lại ở lần mở sau.
+
+Hướng dẫn gửi cho từng người dùng:
+
+1. Tải `release/LINK.xlam` (bản đã có `modAutoUpdate`) về máy.
+2. **Copy** file vào `%APPDATA%\Microsoft\AddIns\` (dán đường dẫn này vào thanh
+   địa chỉ Explorer, thư mục cá nhân của user, luôn có quyền ghi). Nếu đang có
+   add-in `LINK` cũ ở vị trí khác, xoá/gỡ bản cũ trước.
+3. Trong Excel: `File → Options → Add-ins → Manage: Excel Add-ins → Go…` →
+   `Browse…` → chọn đúng file vừa copy trong `AddIns\` → OK → tick chọn `LINK`.
+4. Đóng, mở lại Excel để xác nhận ribbon LINK hiện ra bình thường.
+
+Từ bước này, `ThisWorkbook.FullName` mà `modAutoUpdate` dùng làm đích ghi đè sẽ
+luôn trỏ đúng vào `AddIns\LINK.xlam` — ổn định, có quyền ghi, không phụ thuộc
+người dùng có dọn thư mục Downloads hay không. Từ lần cài này trở đi, mọi bản
+mới đẩy lên `release/` sẽ tự về máy họ, không cần gửi lại file thủ công nữa.
+
+## 5. Người khác (không phải bạn) muốn phát hành bản mới
+
+Cơ chế auto-update nghĩa là **không cần "gửi cho từng người" nữa** — chỉ cần
+cập nhật `release/` trên GitHub, mọi máy đã bootstrap (mục 4) tự nhận ở lần mở
+Excel kế tiếp. Người phát hành mới cần:
+
+1. **Quyền ghi vào repo:** bạn (chủ repo) vào
+   `github.com/namtao/add-in → Settings → Collaborators` → thêm họ làm
+   collaborator (Write), hoặc để họ fork repo rồi gửi Pull Request cho bạn duyệt.
+2. **Sửa add-in:** họ tải `release/LINK.xlam` hiện tại (đã có sẵn
+   `modAutoUpdate` — không cần làm lại mục 1) về máy, mở trong Excel, sửa nội
+   dung/ribbon/VBA cần thiết, tăng `ADDIN_VERSION` trong `modAutoUpdate`
+   (ví dụ `1.0.0` → `1.0.1`), `Debug → Compile`, lưu.
+3. **Đẩy lên GitHub** — hai cách, không bắt buộc biết Git:
+   - **Không cần cài Git:** vào `github.com/namtao/add-in/tree/main/release`
+     trên trình duyệt → `Add file → Upload files` → kéo thả `LINK.xlam` mới đè
+     lên file cũ → commit. Sau đó mở `version.txt`, bấm biểu tượng bút chì, sửa
+     thành `1.0.1`, commit **riêng, sau khi file `.xlam` đã lên**.
+   - **Có Git:** `git add release/LINK.xlam && git commit` trước, rồi mới sửa
+     `version.txt` và commit lần hai, `git push`.
+4. Xong — không cần thao tác gì thêm trên từng máy người dùng. Nếu có quyền
+   truy cập 1–2 máy pilot, nên kiểm tra vòng cập nhật chạy đúng trước khi yên
+   tâm (mục 2 ở trên) trước khi coi bản phát hành là ổn định.
+
+Thứ tự file `.xlam` trước, `version.txt` sau **luôn phải giữ** dù ai phát hành —
+nếu đảo ngược, máy người dùng có thể thấy version mới trước khi file mới có
+mặt và tải về file `.xlam` cũ.
 
 ## Xử lý sự cố
 
