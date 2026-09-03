@@ -46,27 +46,35 @@ Trên một máy test:
 ## 4. Rollout bản gốc tới toàn bộ người dùng (một lần)
 
 Auto-update chỉ chạy được sau khi máy người dùng đã có `modAutoUpdate`. Vì vậy bản
-gốc phải phát tay một lần — **và phải cài đúng cách**, không chỉ mở file bằng
-click đúp:
+gốc phải phát tay một lần — dùng **[install.bat](./install.bat)**, không cần
+người dùng làm thao tác VBE/Options nào cả.
 
-> **Click đúp vào `.xlam` KHÔNG cài đặt add-in.** Nó chỉ mở file như một
-> workbook ẩn trong phiên Excel đang chạy — ribbon hiện tạm thời, nhưng Excel
-> không ghi vào danh sách add-in và sẽ không tự load lại ở lần mở sau.
+> **Click đúp vào `.xlam` KHÔNG cài đặt add-in** — chỉ mở file cho phiên đang
+> chạy, không đăng ký, không tự load lại lần sau. `install.bat` tránh hẳn vấn đề
+> này bằng cách đặt file vào thư mục `XLSTART` — nơi Excel tự mở mọi file trong
+> đó ở mỗi lần khởi động, không cần đăng ký qua `File → Options → Add-ins`,
+> không cần quyền admin.
 
-Hướng dẫn gửi cho từng người dùng:
+Gửi người dùng:
 
-1. Tải `release/LINK.xlam` (bản đã có `modAutoUpdate`) về máy.
-2. **Copy** file vào `%APPDATA%\Microsoft\AddIns\` (dán đường dẫn này vào thanh
-   địa chỉ Explorer, thư mục cá nhân của user, luôn có quyền ghi). Nếu đang có
-   add-in `LINK` cũ ở vị trí khác, xoá/gỡ bản cũ trước.
-3. Trong Excel: `File → Options → Add-ins → Manage: Excel Add-ins → Go…` →
-   `Browse…` → chọn đúng file vừa copy trong `AddIns\` → OK → tick chọn `LINK`.
-4. Đóng, mở lại Excel để xác nhận ribbon LINK hiện ra bình thường.
+1. Gửi link tải `install.bat` (raw URL:
+   `https://raw.githubusercontent.com/namtao/add-in/main/install.bat` — hoặc gửi
+   trực tiếp file qua Zalo/email).
+2. Người dùng double-click `install.bat`. Script tự:
+   - tải `release/LINK.xlam` mới nhất từ GitHub,
+   - kiểm tra kích thước file hợp lệ,
+   - nếu Excel đang mở, nhắc đóng hết rồi mới ghi file,
+   - copy vào `%APPDATA%\Microsoft\Excel\XLSTART\LINK.xlam`.
+3. Mở Excel để xác nhận ribbon LINK hiện ra.
 
-Từ bước này, `ThisWorkbook.FullName` mà `modAutoUpdate` dùng làm đích ghi đè sẽ
-luôn trỏ đúng vào `AddIns\LINK.xlam` — ổn định, có quyền ghi, không phụ thuộc
-người dùng có dọn thư mục Downloads hay không. Từ lần cài này trở đi, mọi bản
-mới đẩy lên `release/` sẽ tự về máy họ, không cần gửi lại file thủ công nữa.
+Từ đây, `ThisWorkbook.FullName` mà `modAutoUpdate` dùng làm đích ghi đè luôn trỏ
+vào `XLSTART\LINK.xlam` — ổn định, có quyền ghi, không phụ thuộc người dùng có
+dọn Downloads hay không. Mọi bản mới đẩy lên `release/` sau đó tự về máy họ,
+không cần gửi lại file hay chạy lại `install.bat`.
+
+> Nếu người dùng đã từng cài `LINK` theo cách cũ (qua `File → Options →
+> Add-ins → Browse`), `install.bat` sẽ cảnh báo và nhắc gỡ bản cũ để tránh
+> ribbon hiện 2 lần.
 
 ## 5. Người khác (không phải bạn) muốn phát hành bản mới
 

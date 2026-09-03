@@ -26,14 +26,15 @@ hiện tại, Excel không bị chậm hay hiện lỗi khi offline.
 ## Bố cục repo
 
 ```
+install.bat        # gửi cho người dùng cuối — double-click là cài xong
 release/
-  LINK.xlam      # bản đang phát hành (client tải về file này)
-  version.txt    # 1 dòng, ví dụ 1.0.3 — phải khớp ADDIN_VERSION trong LINK.xlam
+  LINK.xlam         # bản đang phát hành (install.bat tải file này)
+  version.txt       # 1 dòng, ví dụ 1.0.3 — phải khớp ADDIN_VERSION trong LINK.xlam
 src/
-  modAutoUpdate.bas             # module cần import vào LINK.xlam
+  modAutoUpdate.bas             # module cần import vào LINK.xlam (làm 1 lần, xem INSTALL.md)
   ThisWorkbook.snippet.txt      # đoạn Workbook_Open cần dán
   link_addin_update.reference.bat  # bản tham khảo của .bat sinh lúc chạy
-INSTALL.md       # thiết lập lần đầu (import module + phát hành bản gốc)
+INSTALL.md       # thiết lập lần đầu (import module) + cách rollout bằng install.bat
 ```
 
 ## Quy trình phát hành bản mới
