@@ -1,0 +1,11 @@
+' ============================================================
+' Dan doan code nay vao module "ThisWorkbook" cua LINK.xlam
+' (VBE -> cua so Project -> double click "ThisWorkbook").
+'
+' Neu ThisWorkbook da co san Sub Workbook_Open thi CHI them
+' dong  "modAutoUpdate.ScheduleUpdateCheck"  vao trong Sub do.
+' ============================================================
+
+Private Sub Workbook_Open()
+    modAutoUpdate.ScheduleUpdateCheck
+End Sub
