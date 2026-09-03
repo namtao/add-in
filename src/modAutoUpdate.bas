@@ -6,12 +6,18 @@ Attribute VB_Name = "modAutoUpdate"
 '   ThisWorkbook.Workbook_Open
 '     -> ScheduleUpdateCheck  (Application.OnTime tre ~2 giay, khong chan Excel)
 '     -> CheckForUpdate
-'          - tai release/version.txt tren GitHub raw, so voi ADDIN_VERSION
+'          - tinh checksum SHA256 cua chinh file add-in dang chay (local)
+'          - tai release/version.txt tren GitHub raw - la checksum cua ban
+'            dang phat hanh (remote)
 '          - neu khac  -> tai release/LINK.xlam moi ve file staging canh add-in
 '          - kiem tra file tai (kich thuoc + chu ky "PK" cua ZIP)
 '          - ghi 1 script .bat ra %TEMP%, chay an bang cmd.exe
 '          - .bat doi toan bo EXCEL.EXE thoat -> copy de len add-in that
 '            -> (tuy chon) mo lai Excel -> tu xoa
+'
+' Khong dung so version thu cong (ADDIN_VERSION) nua: version.txt la checksum
+' cua chinh file .xlam, publish.bat tu tinh - nguoi phat hanh khong can go so
+' version nao, khong the quen bump. Sua noi dung file la du de kich hoat update.
 '
 ' Nguyen tac: MOI loi mang / HTTPS / file deu bi nuot lang.
 ' Add-in luon chay tiep binh thuong o phien ban hien tai.
@@ -19,7 +25,6 @@ Attribute VB_Name = "modAutoUpdate"
 Option Explicit
 
 '--- Cau hinh (chinh khi doi repo / doi hanh vi) ---------------------
-Public Const ADDIN_VERSION As String = "1.0.0"          ' bump moi lan phat hanh
 Private Const GH_BASE As String = "https://raw.githubusercontent.com/namtao/add-in/main/release/"
 Private Const VERSION_FILE As String = "version.txt"
 Private Const ADDIN_FILE As String = "LINK.xlam"
@@ -46,17 +51,21 @@ Public Sub CheckForUpdate()
     Dim staging As String
     staging = AddinFolder() & STAGING_NAME
 
-    Dim remote As String
-    remote = Trim$(HttpGetText(GH_BASE & VERSION_FILE & "?nc=" & NoCache()))
-    If Len(remote) = 0 Then GoTo Done
+    Dim remoteHash As String
+    remoteHash = Trim$(HttpGetText(GH_BASE & VERSION_FILE & "?nc=" & NoCache()))
+    If Len(remoteHash) = 0 Then GoTo Done
 
-    If StrComp(remote, ADDIN_VERSION, vbTextCompare) = 0 Then
+    Dim localHash As String
+    localHash = LocalFileHash(ThisWorkbook.FullName)
+    If Len(localHash) = 0 Then GoTo Done   ' khong tinh duoc checksum - thu lai lan sau
+
+    If StrComp(remoteHash, localHash, vbTextCompare) = 0 Then
         ' Da la ban moi nhat - don rac neu lan truoc con sot staging
         SafeKill staging
         GoTo Done
     End If
 
-    ' Co ban khac -> tai ve staging
+    ' Noi dung khac -> tai ve staging
     If Not HttpDownloadFile(GH_BASE & ADDIN_FILE & "?nc=" & NoCache(), staging) Then GoTo Done
     If Not LooksLikeZip(staging) Then
         SafeKill staging
@@ -64,7 +73,7 @@ Public Sub CheckForUpdate()
     End If
 
     LaunchSwap staging, ThisWorkbook.FullName
-    NotifyUpdated remote
+    NotifyUpdated
 Done:
     Exit Sub
 End Sub
@@ -106,6 +115,50 @@ fail:
     On Error Resume Next
     If Not st Is Nothing Then st.Close
     HttpDownloadFile = False
+End Function
+
+'--- Checksum SHA256 cua 1 file, qua PowerShell (co san tu Win7 SP1+) ----
+' Dung WScript.Shell.Run voi waitOnReturn:=True de chay DONG BO (VBA Shell
+' mac dinh chay ngam, khong doi duoc ket qua truoc khi doc file output).
+Private Function LocalFileHash(ByVal path As String) As String
+    On Error GoTo fail
+    Dim outFile As String
+    outFile = Environ$("TEMP") & "\link_localhash_" & Format$(Now, "yyyymmddhhnnss") & ".txt"
+    SafeKill outFile
+
+    Dim sh As Object
+    Set sh = CreateObject("WScript.Shell")
+    Dim q As String: q = Chr$(34)
+    Dim cmd As String
+    cmd = "powershell.exe -NoProfile -NonInteractive -Command " & q & _
+          "(Get-FileHash -Algorithm SHA256 -LiteralPath " & q & q & path & q & q & _
+          ").Hash | Out-File -Encoding ascii " & q & q & outFile & q & q & q
+
+    sh.Run cmd, 0, True   ' 0 = an cua so, True = doi chay xong moi tra ve
+    LocalFileHash = Trim$(ReadTextFile(outFile))
+    SafeKill outFile
+    Exit Function
+fail:
+    LocalFileHash = vbNullString
+End Function
+
+Private Function ReadTextFile(ByVal path As String) As String
+    On Error GoTo fail
+    If Len(Dir$(path)) = 0 Then Exit Function
+    Dim f As Integer, line As String, all As String
+    f = FreeFile
+    Open path For Input As #f
+    Do While Not EOF(f)
+        Line Input #f, line
+        all = all & line
+    Loop
+    Close #f
+    ReadTextFile = all
+    Exit Function
+fail:
+    On Error Resume Next
+    Close #f
+    ReadTextFile = vbNullString
 End Function
 
 '--- Kiem tra file tai la ZIP hop le (xlam = ZIP, magic "PK") -------
@@ -182,17 +235,16 @@ Private Sub SafeKill(ByVal path As String)
     If Len(Dir$(path)) > 0 Then Kill path
 End Sub
 
-Private Sub NotifyUpdated(ByVal newVer As String)
+Private Sub NotifyUpdated()
     On Error Resume Next
-    Dim head As String, tail As String, l2 As String, title As String
-    head = ChrW(272) & ChrW(227) & " t" & ChrW(7843) & "i b" & ChrW(7843) & "n c" & ChrW(7853) & "p nh" & ChrW(7853) & "t "
-    tail = " cho add-in LINK."
+    Dim head As String, title As String
+    head = ChrW(272) & ChrW(227) & " c" & ChrW(243) & " b" & ChrW(7843) & "n c" & ChrW(7853) & "p nh" & ChrW(7853) & "t m" & ChrW(7899) & "i cho add-in LINK." & vbCrLf
     If AUTO_REOPEN_EXCEL Then
-        l2 = "Vui l" & ChrW(242) & "ng " & ChrW(273) & ChrW(243) & "ng to" & ChrW(224) & "n b" & ChrW(7897) & " c" & ChrW(7917) & "a s" & ChrW(7893) & " Excel " & ChrW(273) & ChrW(7875) & " h" & ChrW(7879) & " th" & ChrW(7889) & "ng t" & ChrW(7921) & " c" & ChrW(7853) & "p nh" & ChrW(7853) & "t, sau " & ChrW(273) & ChrW(243) & " Excel s" & ChrW(7869) & " t" & ChrW(7921) & " m" & ChrW(7903) & " l" & ChrW(7841) & "i."
+        head = head & "Vui l" & ChrW(242) & "ng " & ChrW(273) & ChrW(243) & "ng to" & ChrW(224) & "n b" & ChrW(7897) & " c" & ChrW(7917) & "a s" & ChrW(7893) & " Excel " & ChrW(273) & ChrW(7875) & " h" & ChrW(7879) & " th" & ChrW(7889) & "ng t" & ChrW(7921) & " c" & ChrW(7853) & "p nh" & ChrW(7853) & "t, sau " & ChrW(273) & ChrW(243) & " Excel s" & ChrW(7869) & " t" & ChrW(7921) & " m" & ChrW(7903) & " l" & ChrW(7841) & "i."
     Else
-        l2 = "Vui l" & ChrW(242) & "ng " & ChrW(273) & ChrW(243) & "ng to" & ChrW(224) & "n b" & ChrW(7897) & " c" & ChrW(7917) & "a s" & ChrW(7893) & " Excel " & ChrW(273) & ChrW(7875) & " h" & ChrW(7879) & " th" & ChrW(7889) & "ng t" & ChrW(7921) & " c" & ChrW(7853) & "p nh" & ChrW(7853) & "t."
+        head = head & "Vui l" & ChrW(242) & "ng " & ChrW(273) & ChrW(243) & "ng to" & ChrW(224) & "n b" & ChrW(7897) & " c" & ChrW(7917) & "a s" & ChrW(7893) & " Excel " & ChrW(273) & ChrW(7875) & " h" & ChrW(7879) & " th" & ChrW(7889) & "ng t" & ChrW(7921) & " c" & ChrW(7853) & "p nh" & ChrW(7853) & "t."
     End If
     title = "C" & ChrW(7853) & "p nh" & ChrW(7853) & "t add-in LINK"
     ' Dung VBA.MsgBox tuong minh: chuoi da la Unicode (ChrW) nen hien dung dau.
-    VBA.MsgBox head & newVer & tail & vbCrLf & l2, vbInformation, title
+    VBA.MsgBox head, vbInformation, title
 End Sub
