@@ -10,16 +10,17 @@ mở Excel và tự cập nhật, không cần gửi file thủ công.
    `CheckForUpdate` tính checksum SHA256 của chính file add-in đang chạy, tải
    `release/version.txt` từ GitHub raw (checksum của bản đang phát hành) và so
    hai giá trị này.
-3. Nếu khác nhau → tải `release/LINK.xlam` về `LINK.update.xlam` cạnh file add-in,
-   kiểm tra kích thước tối thiểu + chữ ký ZIP (`PK`).
+3. Nếu khác nhau → tải `release/LINK.xlam` về `LINK.update.xlam` cạnh file
+   add-in, rồi kiểm tra 3 lớp: kích thước tối thiểu, chữ ký ZIP (`PK`), và
+   **checksum của file vừa tải phải đúng bằng checksum server báo**. Sai bất kỳ
+   lớp nào → xoá file tải, bỏ qua lần này.
 4. Ghi một script `.bat` ra `%TEMP%`, chạy ẩn. Script:
    - đợi **toàn bộ** `EXCEL.EXE` thoát;
    - `copy /y` bản mới đè lên file add-in thật (thử lại tối đa 5 lần);
    - ghi log `%TEMP%\link_addin_update.log`;
-   - mở lại Excel (tắt bằng `AUTO_REOPEN_EXCEL = False` trong module);
    - tự xoá.
-5. Add-in báo cho người dùng bằng một hộp thoại tiếng Việt rồi để họ đóng Excel
-   khi thuận tiện.
+5. **Im lặng hoàn toàn** — không hộp thoại, không tự mở lại Excel. Người dùng tắt
+   Excel lúc nào thì file được thay lúc đó; lần mở Excel kế tiếp đã là bản mới.
 
 Mọi lỗi mạng / HTTPS / file đều bị nuốt lặng — add-in luôn chạy tiếp ở phiên bản
 hiện tại, Excel không bị chậm hay hiện lỗi khi offline.
@@ -28,11 +29,18 @@ hiện tại, Excel không bị chậm hay hiện lỗi khi offline.
 `release/LINK.xlam`, `publish.bat` tự tính — người phát hành chỉ cần sửa nội
 dung add-in và lưu, không cần nhớ bump version, không thể quên.
 
+**Vì sao phải kiểm checksum file vừa tải (bước 3):** nếu `version.txt` trên
+server lệch với `LINK.xlam` thật (push thiếu, sửa tay nhầm), mà cứ swap bừa thì
+sau khi swap xong checksum local vẫn khác remote → lần mở Excel sau lại tải, lại
+swap… lặp mãi mãi trên **mọi máy**. Chỉ swap khi file tải về đúng bằng checksum
+server báo thì lỗi đó không thể xảy ra. `publish.bat` cũng chặn ở đầu nguồn bằng
+cách từ chối ghi `version.txt` nếu checksum không phải đúng 64 ký tự hex.
+
 ## Bố cục repo
 
 ```
-install.bat        # gửi cho người dùng cuối — double-click là cài xong
-publish.bat         # gửi cho người phát hành bản mới — double-click là xong, không gõ gì
+install.bat         # gửi cho người dùng cuối — double-click là cài xong
+publish.bat         # người phát hành: kéo thả LINK.xlam vào là xong
 release/
   LINK.xlam         # bản đang phát hành (install.bat tải file này)
   version.txt       # checksum SHA256 của LINK.xlam ở trên — publish.bat tự tính
@@ -51,16 +59,32 @@ INSTALL.md       # thiết lập lần đầu (import module) + cách rollout b�
 > (xem `INSTALL.md` mục 4).
 
 1. Mở `LINK.xlam` trong Excel, sửa nội dung/ribbon/VBA cần thiết, lưu, đóng Excel.
-   Không có hằng số version nào phải sửa.
-2. Double-click **[publish.bat](./publish.bat)** — không hỏi gì, không cần gõ
-   gì. Script tự: `git pull` → tính checksum SHA256 của `LINK.xlam` → ghi vào
-   `version.txt` → commit cả hai file cùng lúc → `git push`.
-3. Pilot 1–2 máy: mở Excel → thấy hộp thoại cập nhật → đóng hết Excel → Excel tự
-   mở lại ở bản mới. Kiểm tra `%TEMP%\link_addin_update.log` = `OK=1`.
+   Không có hằng số version nào phải sửa. Sửa ở thư mục nào cũng được.
+2. **Kéo thả file `LINK.xlam` vừa sửa vào icon [publish.bat](./publish.bat)** —
+   không hỏi gì, không cần gõ gì. Script tự: lấy bản mới nhất từ GitHub → đặt
+   file của bạn lên trên → tính checksum SHA256 → ghi vào `version.txt` → commit
+   cả hai file cùng lúc → push.
+   (Hoặc lưu đè vào `%USERPROFILE%\LINK-addin-publish\release\LINK.xlam` rồi
+   double-click `publish.bat` — cùng kết quả.)
+3. Pilot 1–2 máy: mở Excel, đợi ~5 giây, kiểm tra có file `LINK.update.xlam` cạnh
+   `%APPDATA%\Microsoft\Excel\XLSTART\LINK.xlam`. Đóng hết Excel → mở lại → file
+   staging đã biến mất và `%TEMP%\link_addin_update.log` có dòng `OK=1`.
 4. Sạch → các máy còn lại tự nhận ở lần mở Excel kế tiếp.
 
 `publish.bat` commit `LINK.xlam` và `version.txt` cùng một lần push nên không
 có khoảng hở "version mới báo trước khi file mới sẵn sàng".
+
+## Nhiều người cùng phát hành
+
+`publish.bat` luôn đồng bộ với GitHub trước khi commit, nên không bao giờ kẹt ở
+lỗi git. Nếu phát hiện người khác vừa phát hành trong lúc bạn đang sửa, script
+**in cảnh báo và đợi 10 giây** để bạn kịp bấm Ctrl+C — vì bản của bạn dựa trên
+bản cũ hơn nên sẽ ghi đè thay đổi của họ. Không dừng thì script tiếp tục theo
+nguyên tắc "người phát hành sau thắng"; bản bị ghi đè vẫn còn nguyên trong lịch
+sử git, lấy lại được bất cứ lúc nào.
+
+`.xlam` là file nhị phân nên git không merge được — chỉ nên một người sửa tại
+một thời điểm.
 
 ## Rollback
 
@@ -75,15 +99,20 @@ kèm ngày) ở một thư mục riêng để có gì rollback ngay.
 |---|---|
 | `GH_BASE` | URL thư mục `release/` trên GitHub raw. Đổi khi đổi repo/nhánh. |
 | `MIN_VALID_BYTES` | Ngưỡng kích thước tối thiểu coi file tải là hợp lệ (mặc định 50 KB). |
-| `AUTO_REOPEN_EXCEL` | `True` = script tự mở lại Excel sau khi cập nhật. |
+| `AUTO_REOPEN_EXCEL` | `True` = script tự mở lại Excel sau khi cập nhật. Mặc định `False`. |
+| `NOTIFY_USER` | `True` = hiện hộp thoại báo có bản mới. Mặc định `False` (im lặng). |
 
 ## Giới hạn đã biết
 
-- Checksum tính bằng PowerShell (`Get-FileHash`, có sẵn từ Windows 7 SP1) qua
-  `WScript.Shell.Run` đồng bộ — nếu máy không có PowerShell (rất hiếm), việc
-  tính checksum thất bại và add-in bỏ qua lần kiểm tra đó, thử lại lần mở sau.
+- Checksum được tính **ngay trong tiến trình Excel** bằng .NET
+  (`System.Security.Cryptography.SHA256Managed` qua COM, có sẵn trên mọi máy có
+  .NET Framework — gần như mọi Windows 7+). Chỉ tốn vài mili giây. Nếu .NET
+  không dùng được, add-in lùi về gọi PowerShell `Get-FileHash` — cách này chặn
+  luồng chính Excel ~1–3 giây mỗi lần mở, nên chỉ là đường lui.
 - Hai tiến trình Excel cùng lúc có thể cùng tải + cùng bung script; `copy /y`
   idempotent nên không hỏng file, chỉ dư một dòng `OK=0` trong log.
 - Nếu file add-in nằm ở thư mục người dùng không có quyền ghi, script log `OK=0`
   và add-in giữ nguyên bản cũ; lần mở Excel sau sẽ thử lại.
 - Cơ chế swap dùng `cmd.exe` (không phụ thuộc Windows Script Host).
+- Vì cập nhật im lặng, người dùng không biết mình đang chạy bản nào. Muốn hiện
+  thông báo thì đặt `NOTIFY_USER = True`.

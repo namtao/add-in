@@ -20,35 +20,39 @@ theo sẽ tự động — xem "Quy trình phát hành" trong `README.md`.
 > bằng checksum nội dung file, không phải số version thủ công. Xem
 > `README.md` mục "Cách hoạt động".
 
-## 2. Test nhanh cơ chế (khuyến nghị)
+## 2. Test cơ chế (khuyến nghị, trên máy test)
 
-Trên một máy test:
+Add-in chỉ chấp nhận file tải về khi checksum của nó **đúng bằng** giá trị trong
+`version.txt`. Nên không thể test bằng cách đặt `version.txt` thành chuỗi giả —
+phải phát hành một bản thật sự khác. Cách test đúng:
 
-1. Cài `LINK.xlam` vừa sửa làm add-in (`File → Options → Add-ins → Manage: Excel
-   Add-ins → Browse`).
-2. Trên repo (hoặc nhánh phụ), tạm sửa `release/version.txt` thành một chuỗi bất
-   kỳ khác với checksum thật (ví dụ `test123`), commit + push — mục đích chỉ để
-   giả lập "server báo có bản khác", không cần đúng checksum thật cho bước test
-   cơ chế tải + swap.
-3. Mở Excel → sau ~2 giây hiện hộp thoại "Đã có bản cập nhật mới…".
-4. Kiểm tra có file `LINK.update.xlam` cạnh `LINK.xlam`.
-5. Đóng **toàn bộ** Excel → chờ vài giây → Excel tự mở lại.
-6. Log `%TEMP%\link_addin_update.log` phải có `OK=1`.
-7. Trả `release/version.txt` về đúng checksum thật của `release/LINK.xlam`
-   (`publish.bat` sẽ tự làm việc này ở lần phát hành thật — xem mục 4 và
-   `README.md`), commit + push.
+1. Cài add-in lên máy test bằng `install.bat` (xem mục 4).
+2. Trên máy phát hành, mở `LINK.xlam`, đổi một thứ dễ nhận ra (ví dụ sửa nhãn
+   một nút trong sheet `Setting`), lưu, đóng Excel.
+3. Kéo thả file đó vào `publish.bat`.
+4. Máy test: mở Excel, đợi ~5 giây → kiểm tra có file `LINK.update.xlam` trong
+   `%APPDATA%\Microsoft\Excel\XLSTART\`.
+5. Đóng **toàn bộ** Excel, chờ ~5 giây → `LINK.update.xlam` biến mất và
+   `%TEMP%\link_addin_update.log` có dòng `OK=1`.
+6. Mở lại Excel → thấy nhãn mới. Xong.
 
-> Để test đầy đủ (nội dung file thật sự đổi), sửa gì đó trong `LINK.xlam`
-> (ví dụ đổi 1 label ribbon), lưu, rồi chạy `publish.bat` lên nhánh test —
-> checksum sẽ tự khác, không cần sửa `version.txt` tay.
+> Cập nhật chạy **im lặng**: không có hộp thoại nào, Excel không tự mở lại. Nếu
+> muốn thấy thông báo trong lúc test, tạm đặt `NOTIFY_USER = True` trong
+> `modAutoUpdate.bas`.
+
+Kiểm tra nhanh repo có nhất quán không (chạy ở thư mục clone):
+
+```
+powershell -NoProfile -Command "(Get-FileHash -Algorithm SHA256 release\LINK.xlam).Hash; Get-Content release\version.txt"
+```
+
+Hai dòng in ra phải giống hệt nhau. Nếu lệch, không máy nào cập nhật được (đúng
+theo thiết kế — thà không cập nhật còn hơn cập nhật sai).
 
 ## 3. Phát hành bản gốc
 
-1. Commit `LINK.xlam` (đã có `modAutoUpdate`) vào `release/LINK.xlam`.
-2. Tính checksum thật và ghi vào `release/version.txt` — cách nhanh nhất là
-   chạy `publish.bat` một lần (xem mục 4 của `README.md`), nó tự tính và
-   commit cả hai file đúng cặp với nhau.
-3. `git push` (nếu không dùng `publish.bat`).
+Kéo thả `LINK.xlam` (bản đã có `modAutoUpdate` ở mục 1) vào `publish.bat`.
+Script tự tính checksum, ghi `version.txt`, commit và push cả hai file.
 
 ## 4. Rollout bản gốc tới toàn bộ người dùng (một lần)
 
@@ -74,6 +78,11 @@ Gửi người dùng:
    - copy vào `%APPDATA%\Microsoft\Excel\XLSTART\LINK.xlam`.
 3. Mở Excel để xác nhận ribbon LINK hiện ra.
 
+> **SmartScreen:** file `.bat` tải từ trình duyệt sẽ bị Windows chặn một lần với
+> thông báo *"Windows protected your PC"* → bấm **More info → Run anyway**. Muốn
+> tránh hẳn thì gửi file qua Zalo/ổ mạng nội bộ thay vì link tải, hoặc kèm ảnh
+> chụp hai cú bấm đó vào hướng dẫn gửi người dùng.
+
 Từ đây, `ThisWorkbook.FullName` mà `modAutoUpdate` dùng làm đích ghi đè luôn trỏ
 vào `XLSTART\LINK.xlam` — ổn định, có quyền ghi, không phụ thuộc người dùng có
 dọn Downloads hay không. Mọi bản mới đẩy lên `release/` sau đó tự về máy họ,
@@ -89,42 +98,37 @@ Cơ chế auto-update nghĩa là **không cần "gửi cho từng người" nữ
 cập nhật `release/` trên GitHub, mọi máy đã bootstrap (mục 4) tự nhận ở lần mở
 Excel kế tiếp. Người phát hành mới cần:
 
-1. **Tài khoản GitHub:** nếu họ chưa có, tạo giúp tại `github.com/signup`
+1. **Tài khoản GitHub:** nếu họ chưa có, tạo tại `github.com/signup`
    (email + mật khẩu, ~1 phút, miễn phí, không cần thẻ).
 2. **Quyền ghi vào repo:** bạn (chủ repo) vào
    `github.com/namtao/add-in → Settings → Collaborators → Add people`, nhập
    username/email GitHub của họ, họ bấm chấp nhận lời mời qua email.
-3. **Sửa add-in:** họ mở `LINK.xlam` trong Excel (đã có sẵn `modAutoUpdate` —
-   không cần làm lại mục 1), sửa nội dung/ribbon/VBA cần thiết, lưu. Không có
-   số version nào phải nhớ bump — sửa nội dung là đủ.
-4. **Đẩy lên GitHub bằng [publish.bat](./publish.bat)** — không cần biết lệnh
-   git, không cần gõ gì:
-   - Chỉ cần cài **Git for Windows** một lần
-     ([git-scm.com/download/win](https://git-scm.com/download/win), bấm Next
-     liên tục là xong).
-   - Chạy `publish.bat` lần đầu để nó tự tạo thư mục
-     `%USERPROFILE%\LINK-addin-publish\` — từ đó về sau, họ luôn mở và **lưu
-     đè** `LINK.xlam` đúng vào `...\LINK-addin-publish\release\LINK.xlam`.
-   - Mỗi lần có bản mới: double-click `publish.bat`. Script tự tính checksum,
-     commit, push — **không hỏi gì, không cần gõ gì**. Lần push đầu tiên sẽ
-     bật cửa sổ đăng nhập GitHub trong trình duyệt, đăng nhập xong là dùng
-     được mãi.
-   - (Không cài Git cũng được: vào
-     `github.com/namtao/add-in/tree/main/release` trên trình duyệt →
-     `Add file → Upload files` → kéo thả `LINK.xlam` mới đè lên file cũ →
-     commit; nhưng khi đó phải tự tính lại checksum SHA256 của file và dán
-     vào `version.txt` — `publish.bat` làm việc này tự động nên là cách được
-     khuyến nghị.)
-5. Xong — không cần thao tác gì thêm trên từng máy người dùng. Nếu có quyền
-   truy cập 1–2 máy pilot, nên kiểm tra vòng cập nhật chạy đúng trước khi yên
-   tâm (mục 2 ở trên) trước khi coi bản phát hành là ổn định.
+3. **Cài Git for Windows một lần**
+   ([git-scm.com/download/win](https://git-scm.com/download/win), bấm Next
+   liên tục là xong).
+4. **Chạy `publish.bat` lần đầu** — nó tự tải repo về
+   `%USERPROFILE%\LINK-addin-publish\` rồi dừng lại.
+5. **Mỗi lần có bản mới:** mở `LINK.xlam` (đã có sẵn `modAutoUpdate` — không cần
+   làm lại mục 1), sửa, lưu, rồi **kéo thả file đó vào icon `publish.bat`**.
+   Không hỏi gì, không cần gõ gì, không có số version nào phải nhớ. Lần push đầu
+   tiên sẽ bật cửa sổ đăng nhập GitHub trong trình duyệt, đăng nhập xong là dùng
+   được mãi.
+6. Nếu trong lúc họ sửa mà người khác vừa phát hành, `publish.bat` in cảnh báo và
+   đợi 10 giây để họ kịp bấm Ctrl+C (xem `README.md` mục "Nhiều người cùng phát
+   hành").
+
+> **Không nên** upload `LINK.xlam` thẳng qua giao diện web GitHub: khi đó
+> `version.txt` không được tính lại, checksum sẽ lệch và **không máy nào cập
+> nhật được** cho tới khi có người chạy `publish.bat`. Luôn dùng `publish.bat`.
 
 ## Xử lý sự cố
 
 | Hiện tượng | Kiểm tra |
 |---|---|
-| Không thấy hộp thoại cập nhật | Máy có chặn `raw.githubusercontent.com` không? Thử mở URL trong `GH_BASE` bằng trình duyệt. |
-| Có `LINK.update.xlam` nhưng không cập nhật | Chưa đóng hết Excel. Đóng toàn bộ cửa sổ Excel. |
+| Không máy nào cập nhật, cũng không lỗi gì | Checksum trong `version.txt` lệch với `release/LINK.xlam`. Chạy lệnh kiểm tra ở mục 2; sửa bằng cách chạy `publish.bat` lại. |
+| Không có `LINK.update.xlam` sau khi mở Excel | Máy có chặn `raw.githubusercontent.com` không? Thử mở URL trong `GH_BASE` bằng trình duyệt. |
+| Có `LINK.update.xlam` nhưng file không được thay | Chưa đóng hết Excel. Đóng toàn bộ cửa sổ Excel rồi chờ vài giây. |
 | `link_addin_update.log` = `OK=0` | File add-in ở thư mục không có quyền ghi, hoặc đường dẫn mạng. Đặt add-in ở `%APPDATA%\Microsoft\Excel\XLSTART\` (xem mục 4). |
-| Excel không tự mở lại | `start "" excel.exe` không tìm thấy Excel trong PATH/App Paths. Người dùng tự mở Excel; add-in vẫn đã được cập nhật. |
+| Excel mở chậm hẳn đi ~1–3 giây | .NET COM không dùng được nên add-in phải lùi về PowerShell để tính checksum. Kiểm tra máy có .NET Framework không. |
 | `publish.bat` báo "khong co gi thay doi" dù đã sửa file | So sánh bằng checksum nội dung — nếu lưu Excel mà nội dung nhị phân giống hệt (hiếm) sẽ không đổi checksum. Sửa thêm gì đó rồi lưu lại. |
+| `publish.bat` báo lỗi checksum | PowerShell không chạy được trên máy đó. Script cố tình từ chối publish thay vì ghi `version.txt` rác. |

@@ -6,6 +6,10 @@ rem  KHONG dung file nay truc tiep; sua logic o modAutoUpdate.bas.
 rem
 rem  Tham so:  %1 = duong dan file staging (LINK.update.xlam)
 rem            %2 = duong dan file add-in that (ThisWorkbook.FullName)
+rem
+rem  Dong "start excel.exe" o cuoi CHI duoc sinh ra khi hang so
+rem  AUTO_REOPEN_EXCEL = True. Mac dinh la False (cap nhat im lang):
+rem  script chi lang le doi Excel dong roi thay file, khong mo lai gi ca.
 rem ============================================================
 setlocal
 set "SRC=%~1"
@@ -29,6 +33,6 @@ for /l %%i in (1,1,5) do (
 >>"%TEMP%\link_addin_update.log" echo %date% %time% OK=%OK% "%DST%"
 if "%OK%"=="1" (
   del /q "%SRC%" >nul 2>&1
-  start "" excel.exe
+  rem start "" excel.exe      <- chi co khi AUTO_REOPEN_EXCEL = True
 )
 (goto) 2>nul & del "%~f0"

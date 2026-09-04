@@ -10,14 +10,20 @@ Attribute VB_Name = "modAutoUpdate"
 '          - tai release/version.txt tren GitHub raw - la checksum cua ban
 '            dang phat hanh (remote)
 '          - neu khac  -> tai release/LINK.xlam moi ve file staging canh add-in
-'          - kiem tra file tai (kich thuoc + chu ky "PK" cua ZIP)
+'          - kiem tra file tai: kich thuoc + chu ky "PK" cua ZIP + checksum
+'            cua file tai ve PHAI trung remote (chan release bi lech, xem duoi)
 '          - ghi 1 script .bat ra %TEMP%, chay an bang cmd.exe
-'          - .bat doi toan bo EXCEL.EXE thoat -> copy de len add-in that
-'            -> (tuy chon) mo lai Excel -> tu xoa
+'          - .bat doi toan bo EXCEL.EXE thoat -> copy de len add-in that -> tu xoa
 '
-' Khong dung so version thu cong (ADDIN_VERSION) nua: version.txt la checksum
-' cua chinh file .xlam, publish.bat tu tinh - nguoi phat hanh khong can go so
-' version nao, khong the quen bump. Sua noi dung file la du de kich hoat update.
+' Khong dung so version thu cong: version.txt la checksum cua chinh file .xlam,
+' publish.bat tu tinh - nguoi phat hanh khong can go so version nao, khong the
+' quen bump. Sua noi dung file la du de kich hoat update.
+'
+' Vi sao phai kiem checksum file vua tai (guard chong lap vo han):
+'   Neu version.txt tren server lech voi LINK.xlam that (push thieu, go nham),
+'   ma cu swap bua thi sau khi swap xong checksum local van khac remote -> lan
+'   mo Excel sau lai tai, lai swap... lap mai mai tren MOI may. Chi swap khi
+'   file tai ve dung bang checksum server bao thi loi do khong the xay ra.
 '
 ' Nguyen tac: MOI loi mang / HTTPS / file deu bi nuot lang.
 ' Add-in luon chay tiep binh thuong o phien ban hien tai.
@@ -30,8 +36,9 @@ Private Const VERSION_FILE As String = "version.txt"
 Private Const ADDIN_FILE As String = "LINK.xlam"
 Private Const STAGING_NAME As String = "LINK.update.xlam"
 Private Const HELPER_LOG As String = "link_addin_update.log"
-Private Const MIN_VALID_BYTES As Long = 51200           ' 50 KB - chan file tai loi/rong
-Private Const AUTO_REOPEN_EXCEL As Boolean = True        ' mo lai Excel sau khi cap nhat
+Private Const MIN_VALID_BYTES As Long = 51200      ' 50 KB - chan file tai loi/rong
+Private Const AUTO_REOPEN_EXCEL As Boolean = False ' True = tu mo lai Excel sau khi swap
+Private Const NOTIFY_USER As Boolean = False       ' True = hien MsgBox bao co ban moi
 
 Private mChecked As Boolean
 
@@ -56,7 +63,7 @@ Public Sub CheckForUpdate()
     If Len(remoteHash) = 0 Then GoTo Done
 
     Dim localHash As String
-    localHash = LocalFileHash(ThisWorkbook.FullName)
+    localHash = FileHash(ThisWorkbook.FullName)
     If Len(localHash) = 0 Then GoTo Done   ' khong tinh duoc checksum - thu lai lan sau
 
     If StrComp(remoteHash, localHash, vbTextCompare) = 0 Then
@@ -72,8 +79,15 @@ Public Sub CheckForUpdate()
         GoTo Done
     End If
 
+    ' Guard: file vua tai phai dung bang checksum server bao. Neu release tren
+    ' server khong nhat quan thi bo qua han, khong swap (tranh lap vo han).
+    If StrComp(FileHash(staging), remoteHash, vbTextCompare) <> 0 Then
+        SafeKill staging
+        GoTo Done
+    End If
+
     LaunchSwap staging, ThisWorkbook.FullName
-    NotifyUpdated
+    If NOTIFY_USER Then NotifyUpdated
 Done:
     Exit Sub
 End Sub
@@ -83,7 +97,7 @@ Private Function HttpGetText(ByVal url As String) As String
     On Error GoTo fail
     Dim h As Object
     Set h = CreateObject("WinHttp.WinHttpRequest.5.1")
-    h.SetTimeouts 5000, 5000, 15000, 15000
+    h.SetTimeouts 3000, 3000, 5000, 5000   ' file 64 byte - khong doi lau
     h.Open "GET", url, False
     h.setRequestHeader "Cache-Control", "no-cache"
     h.send
@@ -117,43 +131,88 @@ fail:
     HttpDownloadFile = False
 End Function
 
-'--- Checksum SHA256 cua 1 file, qua PowerShell (co san tu Win7 SP1+) ----
-' Dung WScript.Shell.Run voi waitOnReturn:=True de chay DONG BO (VBA Shell
-' mac dinh chay ngam, khong doi duoc ket qua truoc khi doc file output).
-Private Function LocalFileHash(ByVal path As String) As String
+'=== Checksum SHA256 =================================================
+' Uu tien tinh NGAY TRONG TIEN TRINH Excel bang .NET (mscorlib da dang ky COM
+' san tren moi may co .NET Framework, tuc la gan nhu moi Windows 7+). Cach nay
+' chi ton vai mili giay.
+'
+' KHONG goi PowerShell lam cach chinh: WScript.Shell.Run(..., waitOnReturn:=True)
+' chan luon luong chinh cua Excel, va PowerShell khoi dong nguoi tren may co
+' antivirus mat 1-3 giay -> moi lan mo Excel deu bi don. PowerShell chi con la
+' duong lui khi .NET khong dung duoc.
+'=====================================================================
+Private Function FileHash(ByVal path As String) As String
+    Dim h As String
+    h = HashViaDotNet(path)
+    If Len(h) > 0 Then
+        FileHash = h
+    Else
+        FileHash = HashViaPowerShell(path)
+    End If
+End Function
+
+Private Function HashViaDotNet(ByVal path As String) As String
+    On Error GoTo fail
+    Dim st As Object, sha As Object
+    Dim bytes As Variant, digest As Variant
+
+    Set st = CreateObject("ADODB.Stream")
+    st.Type = 1                       ' adTypeBinary
+    st.Open
+    st.LoadFromFile path
+    bytes = st.Read
+    st.Close
+
+    Set sha = CreateObject("System.Security.Cryptography.SHA256Managed")
+    digest = sha.ComputeHash_2((bytes))   ' ngoac kep de truyen ByVal
+
+    Dim i As Long, s As String
+    For i = LBound(digest) To UBound(digest)
+        s = s & Right$("0" & Hex$(digest(i)), 2)
+    Next i
+    HashViaDotNet = s                 ' Hex$ tra ve chu HOA, trung dinh dang PowerShell
+    Exit Function
+fail:
+    On Error Resume Next
+    If Not st Is Nothing Then st.Close
+    HashViaDotNet = vbNullString
+End Function
+
+Private Function HashViaPowerShell(ByVal path As String) As String
     On Error GoTo fail
     Dim outFile As String
-    outFile = Environ$("TEMP") & "\link_localhash_" & Format$(Now, "yyyymmddhhnnss") & ".txt"
+    outFile = Environ$("TEMP") & "\link_hash_" & Format$(Now, "yyyymmddhhnnss") & ".txt"
     SafeKill outFile
 
     Dim sh As Object
     Set sh = CreateObject("WScript.Shell")
     Dim q As String: q = Chr$(34)
     Dim cmd As String
+    ' Nhay don cua PowerShell cho duong dan -> khoi phai escape nhay kep long nhau
     cmd = "powershell.exe -NoProfile -NonInteractive -Command " & q & _
-          "(Get-FileHash -Algorithm SHA256 -LiteralPath " & q & q & path & q & q & _
-          ").Hash | Out-File -Encoding ascii " & q & q & outFile & q & q & q
+          "(Get-FileHash -Algorithm SHA256 -LiteralPath '" & path & "').Hash | " & _
+          "Out-File -Encoding ascii '" & outFile & "'" & q
 
-    sh.Run cmd, 0, True   ' 0 = an cua so, True = doi chay xong moi tra ve
-    LocalFileHash = Trim$(ReadTextFile(outFile))
+    sh.Run cmd, 0, True               ' 0 = an cua so, True = doi chay xong
+    HashViaPowerShell = Trim$(ReadTextFile(outFile))
     SafeKill outFile
     Exit Function
 fail:
-    LocalFileHash = vbNullString
+    HashViaPowerShell = vbNullString
 End Function
 
 Private Function ReadTextFile(ByVal path As String) As String
     On Error GoTo fail
     If Len(Dir$(path)) = 0 Then Exit Function
-    Dim f As Integer, line As String, all As String
+    Dim f As Integer, ln As String, buf As String
     f = FreeFile
     Open path For Input As #f
     Do While Not EOF(f)
-        Line Input #f, line
-        all = all & line
+        Line Input #f, ln
+        buf = buf & ln
     Loop
     Close #f
-    ReadTextFile = all
+    ReadTextFile = buf
     Exit Function
 fail:
     On Error Resume Next
@@ -235,16 +294,17 @@ Private Sub SafeKill(ByVal path As String)
     If Len(Dir$(path)) > 0 Then Kill path
 End Sub
 
+'--- Chi dung khi NOTIFY_USER = True ------------------------------
 Private Sub NotifyUpdated()
     On Error Resume Next
-    Dim head As String, title As String
-    head = ChrW(272) & ChrW(227) & " c" & ChrW(243) & " b" & ChrW(7843) & "n c" & ChrW(7853) & "p nh" & ChrW(7853) & "t m" & ChrW(7899) & "i cho add-in LINK." & vbCrLf
+    Dim msg As String, title As String
+    msg = ChrW(272) & ChrW(227) & " c" & ChrW(243) & " b" & ChrW(7843) & "n c" & ChrW(7853) & "p nh" & ChrW(7853) & "t m" & ChrW(7899) & "i cho add-in LINK." & vbCrLf
     If AUTO_REOPEN_EXCEL Then
-        head = head & "Vui l" & ChrW(242) & "ng " & ChrW(273) & ChrW(243) & "ng to" & ChrW(224) & "n b" & ChrW(7897) & " c" & ChrW(7917) & "a s" & ChrW(7893) & " Excel " & ChrW(273) & ChrW(7875) & " h" & ChrW(7879) & " th" & ChrW(7889) & "ng t" & ChrW(7921) & " c" & ChrW(7853) & "p nh" & ChrW(7853) & "t, sau " & ChrW(273) & ChrW(243) & " Excel s" & ChrW(7869) & " t" & ChrW(7921) & " m" & ChrW(7903) & " l" & ChrW(7841) & "i."
+        msg = msg & "Vui l" & ChrW(242) & "ng " & ChrW(273) & ChrW(243) & "ng to" & ChrW(224) & "n b" & ChrW(7897) & " c" & ChrW(7917) & "a s" & ChrW(7893) & " Excel " & ChrW(273) & ChrW(7875) & " h" & ChrW(7879) & " th" & ChrW(7889) & "ng t" & ChrW(7921) & " c" & ChrW(7853) & "p nh" & ChrW(7853) & "t, sau " & ChrW(273) & ChrW(243) & " Excel s" & ChrW(7869) & " t" & ChrW(7921) & " m" & ChrW(7903) & " l" & ChrW(7841) & "i."
     Else
-        head = head & "Vui l" & ChrW(242) & "ng " & ChrW(273) & ChrW(243) & "ng to" & ChrW(224) & "n b" & ChrW(7897) & " c" & ChrW(7917) & "a s" & ChrW(7893) & " Excel " & ChrW(273) & ChrW(7875) & " h" & ChrW(7879) & " th" & ChrW(7889) & "ng t" & ChrW(7921) & " c" & ChrW(7853) & "p nh" & ChrW(7853) & "t."
+        msg = msg & "B" & ChrW(7843) & "n m" & ChrW(7899) & "i s" & ChrW(7869) & " t" & ChrW(7921) & " " & ChrW(273) & ChrW(7897) & "ng " & ChrW(225) & "p d" & ChrW(7909) & "ng sau khi b" & ChrW(7841) & "n " & ChrW(273) & ChrW(243) & "ng to" & ChrW(224) & "n b" & ChrW(7897) & " Excel."
     End If
     title = "C" & ChrW(7853) & "p nh" & ChrW(7853) & "t add-in LINK"
     ' Dung VBA.MsgBox tuong minh: chuoi da la Unicode (ChrW) nen hien dung dau.
-    VBA.MsgBox head, vbInformation, title
+    VBA.MsgBox msg, vbInformation, title
 End Sub
