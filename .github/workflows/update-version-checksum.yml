@@ -1,0 +1,50 @@
+name: Cap nhat version.txt
+
+# Moi khi release/LINK.xlam thay doi, tu tinh SHA256 va ghi vao
+# release/version.txt. Nho vay nguoi phat hanh co the upload file .xlam
+# thang tren giao dien web GitHub - khong can cai Git, khong can tu tinh
+# checksum, khong the quen.
+#
+# publish.bat van dung duoc song song: no da ghi san version.txt dung, nen
+# workflow nay chay xong thay checksum da khop va thoat, khong commit gi them.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'release/LINK.xlam'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  checksum:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tinh SHA256 va cap nhat version.txt
+        run: |
+          set -euo pipefail
+
+          HASH=$(sha256sum release/LINK.xlam | cut -d' ' -f1 | tr 'a-f' 'A-F')
+          echo "Checksum thuc te : $HASH"
+
+          CURRENT=$(tr -d '[:space:]' < release/version.txt 2>/dev/null || true)
+          echo "version.txt hien  : ${CURRENT:-<trong>}"
+
+          if [ "$HASH" = "$CURRENT" ]; then
+            echo "Da khop - khong can commit."
+            exit 0
+          fi
+
+          echo "$HASH" > release/version.txt
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add release/version.txt
+          git commit -m "release: cap nhat checksum version.txt"
+          git push
+
+          echo "Da cap nhat version.txt thanh $HASH"

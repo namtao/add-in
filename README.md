@@ -48,6 +48,8 @@ src/
   modAutoUpdate.bas             # module cần import vào LINK.xlam (làm 1 lần, xem INSTALL.md)
   ThisWorkbook.snippet.txt      # đoạn Workbook_Open cần dán
   link_addin_update.reference.bat  # bản tham khảo của .bat sinh lúc chạy
+.github/workflows/
+  update-version-checksum.yml   # Action tự tính version.txt khi LINK.xlam đổi
 INSTALL.md       # thiết lập lần đầu (import module) + cách rollout bằng install.bat
 ```
 
@@ -58,21 +60,38 @@ INSTALL.md       # thiết lập lần đầu (import module) + cách rollout b�
 > **không cần làm gì** khi có bản mới, chỉ cần đã cài add-in đúng cách một lần
 > (xem `INSTALL.md` mục 4).
 
-1. Mở `LINK.xlam` trong Excel, sửa nội dung/ribbon/VBA cần thiết, lưu, đóng Excel.
-   Không có hằng số version nào phải sửa. Sửa ở thư mục nào cũng được.
+Bước 1 chung cho cả hai cách: mở `LINK.xlam` trong Excel, sửa nội dung/ribbon/VBA
+cần thiết, lưu, đóng Excel. Không có hằng số version nào phải sửa. Sửa ở thư mục
+nào cũng được.
+
+### Cách A — trên trình duyệt (không cần cài gì)
+
+2. Vào `github.com/namtao/add-in/tree/main/release` → `Add file → Upload files`
+   → kéo thả `LINK.xlam` mới đè lên file cũ → `Commit changes`.
+3. Xong. Action **Cap nhat version.txt** tự chạy, tính SHA256 và commit
+   `version.txt` đúng sau ~20–30 giây.
+
+Trong ~30 giây đó `version.txt` còn là checksum cũ, nên máy người dùng tải file
+mới về sẽ thấy không khớp và **bỏ qua** — an toàn, và tự nhận ở lần mở Excel sau.
+
+### Cách B — kéo thả trên máy (cần Git for Windows)
+
 2. **Kéo thả file `LINK.xlam` vừa sửa vào icon [publish.bat](./publish.bat)** —
    không hỏi gì, không cần gõ gì. Script tự: lấy bản mới nhất từ GitHub → đặt
    file của bạn lên trên → tính checksum SHA256 → ghi vào `version.txt` → commit
    cả hai file cùng lúc → push.
    (Hoặc lưu đè vào `%USERPROFILE%\LINK-addin-publish\release\LINK.xlam` rồi
    double-click `publish.bat` — cùng kết quả.)
-3. Pilot 1–2 máy: mở Excel, đợi ~5 giây, kiểm tra có file `LINK.update.xlam` cạnh
+3. `publish.bat` commit `LINK.xlam` và `version.txt` cùng một lần push nên không
+   có cả khoảng hở 30 giây như Cách A. Action chạy sau đó thấy checksum đã khớp
+   và thoát, không commit gì thêm.
+
+### Kiểm tra sau khi phát hành (cả hai cách)
+
+4. Pilot 1–2 máy: mở Excel, đợi ~5 giây, kiểm tra có file `LINK.update.xlam` cạnh
    `%APPDATA%\Microsoft\Excel\XLSTART\LINK.xlam`. Đóng hết Excel → mở lại → file
    staging đã biến mất và `%TEMP%\link_addin_update.log` có dòng `OK=1`.
-4. Sạch → các máy còn lại tự nhận ở lần mở Excel kế tiếp.
-
-`publish.bat` commit `LINK.xlam` và `version.txt` cùng một lần push nên không
-có khoảng hở "version mới báo trước khi file mới sẵn sàng".
+5. Sạch → các máy còn lại tự nhận ở lần mở Excel kế tiếp.
 
 ## Nhiều người cùng phát hành
 

@@ -103,23 +103,30 @@ Excel kế tiếp. Người phát hành mới cần:
 2. **Quyền ghi vào repo:** bạn (chủ repo) vào
    `github.com/namtao/add-in → Settings → Collaborators → Add people`, nhập
    username/email GitHub của họ, họ bấm chấp nhận lời mời qua email.
-3. **Cài Git for Windows một lần**
-   ([git-scm.com/download/win](https://git-scm.com/download/win), bấm Next
-   liên tục là xong).
-4. **Chạy `publish.bat` lần đầu** — nó tự tải repo về
-   `%USERPROFILE%\LINK-addin-publish\` rồi dừng lại.
-5. **Mỗi lần có bản mới:** mở `LINK.xlam` (đã có sẵn `modAutoUpdate` — không cần
-   làm lại mục 1), sửa, lưu, rồi **kéo thả file đó vào icon `publish.bat`**.
-   Không hỏi gì, không cần gõ gì, không có số version nào phải nhớ. Lần push đầu
-   tiên sẽ bật cửa sổ đăng nhập GitHub trong trình duyệt, đăng nhập xong là dùng
-   được mãi.
-6. Nếu trong lúc họ sửa mà người khác vừa phát hành, `publish.bat` in cảnh báo và
-   đợi 10 giây để họ kịp bấm Ctrl+C (xem `README.md` mục "Nhiều người cùng phát
-   hành").
+3. **Mỗi lần có bản mới:** mở `LINK.xlam` (đã có sẵn `modAutoUpdate` — không cần
+   làm lại mục 1), sửa, lưu. Rồi chọn một trong hai cách:
 
-> **Không nên** upload `LINK.xlam` thẳng qua giao diện web GitHub: khi đó
-> `version.txt` không được tính lại, checksum sẽ lệch và **không máy nào cập
-> nhật được** cho tới khi có người chạy `publish.bat`. Luôn dùng `publish.bat`.
+   **Cách A — trên trình duyệt, không cần cài gì (khuyến nghị cho người không rành kỹ thuật):**
+   vào `github.com/namtao/add-in/tree/main/release` → `Add file → Upload files`
+   → kéo thả `LINK.xlam` mới đè lên file cũ → `Commit changes`. Xong. Action
+   **Cap nhat version.txt** tự tính checksum và cập nhật `version.txt` sau
+   ~20–30 giây. Không cần Git, không cần biết checksum.
+
+   **Cách B — kéo thả trên máy:** cần cài
+   [Git for Windows](https://git-scm.com/download/win) một lần (bấm Next liên
+   tục là xong), chạy `publish.bat` một lần để nó tải repo về
+   `%USERPROFILE%\LINK-addin-publish\`, sau đó mỗi lần phát hành chỉ việc **kéo
+   thả file `.xlam` vào icon `publish.bat`**. Lần push đầu tiên sẽ bật cửa sổ
+   đăng nhập GitHub trong trình duyệt, đăng nhập xong là dùng được mãi.
+
+4. Nếu trong lúc họ sửa mà người khác vừa phát hành, `publish.bat` (Cách B) in
+   cảnh báo và đợi 10 giây để họ kịp bấm Ctrl+C (xem `README.md` mục "Nhiều
+   người cùng phát hành").
+
+> Cách A có khoảng hở ~30 giây giữa lúc `LINK.xlam` mới lên và lúc Action ghi
+> xong `version.txt`. Trong khoảng đó máy người dùng thấy checksum không khớp
+> nên **bỏ qua, không cập nhật** — an toàn, và tự nhận ở lần mở Excel sau. Cách B
+> không có khoảng hở này vì commit cả hai file cùng lúc.
 
 ## Xử lý sự cố
 
