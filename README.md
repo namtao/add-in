@@ -82,6 +82,14 @@ Xong. Script báo *"Da phat hanh thanh cong"* là đã lên.
 > người sửa tại một thời điểm**. Ai phát hành sau sẽ ghi đè lên bản của người
 > trước (bản cũ vẫn còn trong lịch sử, lấy lại được).
 
+> 🛡️ **Script tự kiểm tra trước khi đẩy lên.** Nếu bạn lỡ chọn nhầm một bản
+> `LINK.xlam` cũ (bản chưa có module tự cập nhật), `publish.bat` **từ chối phát
+> hành** và báo cho bạn biết. Đây là lỗi làm hỏng cả hệ thống — mọi máy sẽ mất
+> khả năng tự cập nhật — nên script chặn cứng, không cho bỏ qua.
+>
+> Thói quen an toàn: **luôn tải bản mới nhất từ repo về rồi sửa trên đó**, đừng
+> dùng file cũ nằm sẵn trong Downloads.
+
 **Cách thay thế** — nếu bạn có tài khoản GitHub và đã được add làm Collaborator:
 vào https://github.com/namtao/add-in/tree/main/release → `Add file → Upload files`
 → kéo thả `LINK.xlam` mới đè lên file cũ → `Commit changes`.
@@ -119,6 +127,9 @@ Bước này bắt buộc làm thủ công vì VBA nằm trong `vbaProject.bin` 
 biên dịch, chỉ ghi được bằng chính Excel trên Windows.
 
 Cần một máy Windows có Excel.
+
+> Trước khi làm xong bước này, `publish.bat` sẽ từ chối phát hành file
+> `release/LINK.xlam` hiện tại — đúng như thiết kế, vì nó chưa có module.
 
 **Kiểm tra đã làm chưa:** mở `release/LINK.xlam`, bấm `Alt+F11`, nhìn cột trái —
 có module tên `modAutoUpdate` không? Có rồi thì bỏ qua mục này.
@@ -169,5 +180,6 @@ chạy một lần. Từ đó về sau họ tự nhận mọi bản mới.
 | Không máy nào cập nhật được | `version.txt` lệch với `LINK.xlam`. Phát hành lại theo B2 là tự khớp. |
 | `publish.bat` báo *"noi dung giong het ban dang phat hanh"* | File không đổi so với bản đang chạy. Sửa gì đó rồi lưu lại. |
 | `publish.bat` báo token không hợp lệ / hết hạn | Token hết hạn hoặc bị thu hồi. Xin token mới từ chủ repo (C2). |
+| `publish.bat` báo *"File nay CHUA co module tu cap nhat"* | Bạn đang sửa nhầm bản `.xlam` cũ. Tải bản mới nhất từ repo về, sửa lại trên đó rồi phát hành. |
 | `publish.bat` báo *"khong du quyen"* | Token thiếu quyền `Contents: Read and write`. Tạo lại token theo C2. |
 | `publish.bat` báo có người push cùng lúc | Chạy lại `publish.bat` một lần nữa. |

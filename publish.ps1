@@ -48,6 +48,43 @@ function Get-PublishToken {
     return $plain
 }
 
+# Kiem tra file .xlam da chua module tu cap nhat chua.
+#
+# Vi sao can: neu ai do lo sua nham mot ban LINK.xlam cu (ban chua co
+# modAutoUpdate) roi phat hanh, thi ban "khong biet tu cap nhat" do se duoc day
+# xuong MOI may. Tu do tro di khong may nao nhan duoc ban moi nua, phai di cai
+# lai tung may bang install.bat. Chan ngay tai day.
+#
+# Ten module nam dang text doc duoc trong xl/vbaProject.bin, o ca hai dang
+# ASCII va UTF-16LE - do ca hai cho chac.
+function Test-HasAutoUpdate {
+    param([Parameter(Mandatory = $true)][string]$XlamPath)
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+
+    $zip = [IO.Compression.ZipFile]::OpenRead($XlamPath)
+    try {
+        $entry = $zip.Entries | Where-Object { $_.FullName -eq 'xl/vbaProject.bin' }
+        if (-not $entry) { return $false }   # khong co VBA project nao ca
+
+        $ms = New-Object IO.MemoryStream
+        $stream = $entry.Open()
+        try { $stream.CopyTo($ms) } finally { $stream.Dispose() }
+        $vba = $ms.ToArray()
+        $ms.Dispose()
+    } finally {
+        $zip.Dispose()
+    }
+
+    # Latin1 anh xa 1 byte = 1 ky tu, nho vay dung duoc String.IndexOf de do byte
+    $latin1 = [Text.Encoding]::GetEncoding('ISO-8859-1')
+    $hay    = $latin1.GetString($vba)
+    $needle = 'modAutoUpdate'
+    $needleUtf16 = $latin1.GetString([Text.Encoding]::Unicode.GetBytes($needle))
+
+    return ($hay.IndexOf($needle) -ge 0) -or ($hay.IndexOf($needleUtf16) -ge 0)
+}
+
 # --- Kiem tra file nguon ---
 if (-not (Test-Path -LiteralPath $SrcPath)) { throw "Khong tim thay file: $SrcPath" }
 $bytes = [IO.File]::ReadAllBytes($SrcPath)
@@ -56,6 +93,18 @@ if ($bytes.Length -lt $MinBytes) {
 }
 if ($bytes[0] -ne 0x50 -or $bytes[1] -ne 0x4B) {
     throw "File khong phai dinh dang .xlam hop le (thieu chu ky ZIP 'PK')."
+}
+
+if (-not (Test-HasAutoUpdate -XlamPath $SrcPath)) {
+    throw @"
+File nay CHUA co module tu cap nhat (modAutoUpdate).
+
+Co ve ban dang sua nham mot ban LINK.xlam cu. Neu phat hanh ban nay, MOI may se
+mat kha nang tu cap nhat va phai di cai lai tung may bang install.bat.
+
+Hay tai ban moi nhat ve roi sua lai tren do:
+  https://github.com/namtao/add-in/raw/main/release/LINK.xlam
+"@
 }
 
 $token = Get-PublishToken
