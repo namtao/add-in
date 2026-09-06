@@ -52,37 +52,39 @@ nữa** — mọi bản mới tự về.
 
 ## 2. Phát hành bản mới
 
-### Chuẩn bị một lần cho mỗi người phát hành
+### Chuẩn bị — chủ repo làm MỘT lần
 
-1. **Tài khoản GitHub** — `github.com/signup`, miễn phí, ~1 phút, không cần thẻ.
-2. **Quyền ghi** — chủ repo vào `Settings → Collaborators → Add people`, nhập
-   username của họ; họ bấm chấp nhận trong email.
+Tạo token phát hành:
+
+1. `github.com` → ảnh đại diện góc phải → **Settings** → cuối cột trái → **Developer settings**
+2. **Personal access tokens → Fine-grained tokens → Generate new token**
+3. **Token name** `link-addin-publish` · **Expiration** 1 năm · **Resource owner** `namtao`
+4. **Repository access**: chọn **Only select repositories** → `namtao/add-in`
+5. **Permissions → Repository permissions → Contents: Read and write**
+   *(mọi mục khác để No access; Metadata tự bật Read-only là bình thường)*
+6. **Generate token** → copy ngay, token chỉ hiện **một lần**
+
+Gửi token này **riêng tư** (Zalo/tin nhắn) cho người được phép phát hành.
+Đừng đưa token vào file nào commit lên repo — GitHub tự thu hồi token nếu phát
+hiện nó trong mã nguồn công khai. Đặt lịch tạo token mới mỗi năm.
 
 ### Mỗi lần phát hành
 
 **Bước 1.** Mở `LINK.xlam` trong Excel, sửa nội dung/ribbon/VBA, lưu, đóng Excel.
 Không có số version nào phải tăng — sửa nội dung là đủ.
 
-**Bước 2.** Chọn một trong hai cách:
+**Bước 2.** **Kéo thả file `LINK.xlam` vào icon `publish.bat`.** Xong.
 
-**Cách A — trên trình duyệt, không cài gì** *(khuyến nghị)*
+Lần chạy đầu tiên script hỏi token — dán vào một lần, nó lưu mã hoá trên máy đó
+và không hỏi lại nữa. **Không cần tài khoản GitHub, không cần cài Git.**
 
-1. Vào https://github.com/namtao/add-in/tree/main/release
-2. `Add file → Upload files` → kéo thả `LINK.xlam` mới đè lên file cũ
-3. `Commit changes`
-
-Xong. Chờ ~30 giây để hệ thống tự tính lại checksum.
-
-**Cách B — kéo thả trên máy** *(cần cài [Git for Windows](https://git-scm.com/download/win) một lần, bấm Next liên tục)*
-
-1. Chạy `publish.bat` một lần → nó tự tải repo về `%USERPROFILE%\LINK-addin-publish\`
-2. Từ đó mỗi lần phát hành: **kéo file `LINK.xlam` thả vào icon `publish.bat`**
-
-Lần push đầu tiên sẽ mở cửa sổ đăng nhập GitHub — đăng nhập một lần là dùng mãi.
+> **Cách thay thế** — nếu người phát hành có tài khoản GitHub và đã được add làm
+> Collaborator: vào https://github.com/namtao/add-in/tree/main/release →
+> `Add file → Upload files` → kéo thả `LINK.xlam` mới đè lên file cũ →
+> `Commit changes`.
 
 > `.xlam` là file nhị phân, không merge được — chỉ nên **một người sửa tại một
-> thời điểm**. Nếu có người khác vừa phát hành trong lúc bạn đang sửa,
-> `publish.bat` sẽ cảnh báo và đợi 10 giây để bạn kịp bấm Ctrl+C.
+> thời điểm**.
 
 ### Kiểm tra sau khi phát hành
 
@@ -127,4 +129,6 @@ Nên giữ vài bản `.xlam` cũ (đặt tên kèm ngày) ở một thư mục 
 | `link_addin_update.log` ghi `OK=0` | Thư mục add-in không có quyền ghi. Chạy lại `install.bat`. |
 | Excel mở chậm hẳn ~1–3 giây | Máy thiếu .NET Framework nên phải dùng cách tính checksum chậm hơn. |
 | Ribbon LINK hiện 2 lần | Máy còn bản cài kiểu cũ. Gỡ ở `File → Options → Add-ins → Manage: Excel Add-ins → Go`, bỏ tick, xoá file cũ. |
-| `publish.bat` báo "khong co gi thay doi" | Nội dung file không đổi so với bản đang phát hành. Sửa gì đó rồi lưu lại. |
+| `publish.bat` báo "noi dung giong het ban dang phat hanh" | File không đổi so với bản đang chạy. Sửa gì đó rồi lưu lại. |
+| `publish.bat` báo token không hợp lệ / hết hạn | Token đã hết hạn hoặc bị thu hồi. Chủ repo tạo token mới (mục 2) và gửi lại. |
+| `publish.bat` báo "khong du quyen" | Token thiếu quyền `Contents: Read and write`. Tạo lại token đúng quyền. |
