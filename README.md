@@ -60,7 +60,8 @@ Bạn cần 2 thứ, xin từ người quản trị repo:
 Chưa cần làm gì thêm. Lần đầu chạy `publish.bat` nó sẽ hỏi token — dán vào một
 lần, script lưu mã hoá trên máy bạn và **không hỏi lại nữa**.
 
-> **Không cần tài khoản GitHub. Không cần cài Git.** Chỉ cần 2 file trên.
+> **Không cần tài khoản GitHub. Không cần cài Git.** Chỉ cần đúng 1 file
+> (`publish.bat`) và 1 chuỗi token.
 
 ## B2. Mỗi lần phát hành
 
