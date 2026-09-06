@@ -11,6 +11,9 @@ người dùng không phải làm gì khi có bản mới.
 | **Người phát hành bản mới** | [B1 — Chuẩn bị](#b1-lần-đầu--chuẩn-bị-một-lần) | [B2 — Kéo thả để phát hành](#b2-mỗi-lần-phát-hành) |
 | **Chủ repo, dựng hệ thống** | [C — Thiết lập ban đầu](#c-thiết-lập-ban-đầu--chủ-repo-làm-một-lần-duy-nhất) | — |
 
+> Đây là ba **vai trò**, không phải ba người khác nhau. Một người có thể kiêm cả
+> ba. Tách ra để khi giao việc phát hành cho đồng nghiệp, họ chỉ cần đọc mục B.
+
 ---
 
 # A. Người dùng add-in
@@ -106,6 +109,14 @@ dùng bản lỗi sẽ tự "cập nhật" ngược về bản cũ, qua đúng c
 # C. Thiết lập ban đầu — chủ repo làm một lần duy nhất
 
 ## C1. Nhúng module tự cập nhật vào LINK.xlam
+
+**Vì sao cần bước này:** code tự cập nhật (`modAutoUpdate`) nằm *bên trong* chính
+file `LINK.xlam`. Một file không thể tự cập nhật trước khi nó chứa đoạn code biết
+cách tự cập nhật — nên phải nhét code vào bằng tay đúng một lần đầu tiên. Sau khi
+làm xong và phát hành, mọi bản sau đều tự có sẵn, **không bao giờ phải làm lại**.
+
+Bước này bắt buộc làm thủ công vì VBA nằm trong `vbaProject.bin` — file nhị phân
+biên dịch, chỉ ghi được bằng chính Excel trên Windows.
 
 Cần một máy Windows có Excel.
 
