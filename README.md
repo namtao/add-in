@@ -46,6 +46,42 @@ bản mới.
 
 Không hộp thoại, không gián đoạn công việc. Không có mạng thì bỏ qua, lần sau thử lại.
 
+## A3. Gỡ add-in
+
+Tải và chạy **`uninstall.bat`**:
+
+```
+https://raw.githubusercontent.com/namtao/add-in/main/uninstall.bat
+```
+
+1. **Double-click `uninstall.bat`**
+2. Đóng hết Excel khi script nhắc
+3. Mở Excel → tab **LINK** đã biến mất
+
+Script xoá file add-in và dọn các file tạm. Không đụng registry, không cần quyền
+admin. Gỡ rồi cài lại lúc nào cũng được, không mất gì.
+
+> Nếu máy từng cài theo kiểu cũ (`File → Options → Add-ins → Browse`),
+> `uninstall.bat` sẽ **báo cho bạn biết** chứ không tự xoá — vì bản đó có đăng ký
+> trong registry, xoá thẳng file sẽ làm Excel báo lỗi thiếu file mỗi lần mở.
+> Script chỉ dẫn cách gỡ đúng.
+
+## A4. Cài lại add-in
+
+Chạy lại **`install.bat`** (mục A1). Nó luôn tải bản mới nhất về, nên cài lại
+cũng là cách **sửa lỗi nhanh nhất** trong 3 tình huống:
+
+| Tình huống | Làm gì |
+|---|---|
+| Đã gỡ, giờ muốn dùng lại | Chạy `install.bat` |
+| Máy mãi không nhận bản mới | Chạy `install.bat` — ép lấy bản mới nhất ngay |
+| Add-in lỗi, nghi file hỏng | Chạy `install.bat` — ghi đè bằng bản sạch từ repo |
+
+Không cần gỡ trước. `install.bat` tự ghi đè lên bản cũ.
+
+> Không mất gì khi cài lại: mọi cấu hình của add-in nằm trong chính file `.xlam`
+> tải từ repo, không có dữ liệu riêng nào lưu trên máy.
+
 ---
 
 # B. Người phát hành bản mới
@@ -176,7 +212,7 @@ chạy một lần. Từ đó về sau họ tự nhận mọi bản mới.
 |---|---|
 | Cài xong nhưng không thấy tab LINK | Đóng hết Excel rồi mở lại. Vẫn không có → chạy lại `install.bat`. |
 | Ribbon LINK hiện 2 lần | Máy còn bản cài kiểu cũ. Gỡ ở `File → Options → Add-ins → Manage: Excel Add-ins → Go`, bỏ tick, xoá file cũ. |
-| Máy không nhận bản mới, cũng không báo lỗi | Máy có chặn `raw.githubusercontent.com`? Thử mở link đó bằng trình duyệt. |
+| Máy không nhận bản mới, cũng không báo lỗi | Chạy lại `install.bat` để ép lấy bản mới nhất. Vẫn không được → máy có chặn `raw.githubusercontent.com`? Thử mở link đó bằng trình duyệt. |
 | Có `LINK.update.xlam` nhưng file không được thay | Chưa đóng hết Excel. Đóng **toàn bộ** cửa sổ Excel rồi chờ vài giây. |
 | `link_addin_update.log` ghi `OK=0` | Thư mục add-in không có quyền ghi. Chạy lại `install.bat`. |
 | Excel mở chậm hẳn ~1–3 giây | Máy thiếu .NET Framework nên add-in phải dùng cách tính checksum chậm hơn. |

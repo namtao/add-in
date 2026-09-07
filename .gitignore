@@ -1,0 +1,7 @@
+# Tai lieu noi bo - khong dua len repo cong khai
+docs.md
+*.pdf
+
+# File tam khi lam viec voi add-in
+*.update.xlam
+~$*.xlam
