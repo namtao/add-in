@@ -285,6 +285,12 @@ Private Function AddinFolder() As String
     AddinFolder = Left$(p, InStrRev(p, "\"))
 End Function
 
+' Tham so chong cache. LUU Y: raw.githubusercontent BO QUA query string khi
+' cache (da do thuc te: x-cache HIT, max-age=300), nen tham so nay KHONG pha
+' duoc cache cua GitHub - ban moi phat hanh co the mat toi 5 phut moi thay.
+' Dieu do vo hai: trong luc do checksum khong khop nen add-in bo qua, lan mo
+' Excel sau se nhan. Van giu tham so vi nhieu proxy noi bo cua cong ty co
+' cache theo URL day du, va no khong ton gi.
 Private Function NoCache() As String
     NoCache = Format$(Now, "yyyymmddhhnnss")
 End Function

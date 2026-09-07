@@ -76,6 +76,9 @@ Không có số version nào phải tăng — sửa nội dung là đủ.
 
 Xong. Script báo *"Da phat hanh thanh cong"* là đã lên.
 
+> ⏱️ Máy người dùng có thể mất **tới 5 phút** mới thấy bản mới (GitHub cache file
+> khoảng 5 phút). Trong lúc đó họ vẫn dùng bản cũ bình thường — không lỗi gì.
+
 > Lần chạy đầu tiên script hỏi token — dán vào rồi Enter.
 
 > `.xlam` là file nhị phân, không gộp thay đổi của 2 người được — **chỉ nên một
