@@ -414,6 +414,53 @@ Chay lai va chon 'C' de script tu xu ly, hoac sua tay roi phat hanh lai.
 
     $bytes = [IO.File]::ReadAllBytes($finalFile)
 
+    # --- Xac nhan truoc khi day len ---
+    # Buoc nay la co tinh: phat hanh se toi MOI may da cai add-in, nen nguoi
+    # phat hanh phai nhin thay minh sap day cai gi roi moi gat dau. Tra loi
+    # "khong" o day cung la cach chay thu: file van duoc kiem tra va vá day du,
+    # bao cao ra man hinh, nhung khong co gi roi khoi may.
+    $localHash = (Get-FileHash -LiteralPath $finalFile -Algorithm SHA256).Hash.ToUpperInvariant()
+
+    $liveHash = $null
+    try {
+        $nc = [Guid]::NewGuid().ToString('N')
+        $liveHash = (Invoke-WebRequest -Uri ($RawBase + 'release/version.txt?nc=' + $nc) `
+            -UseBasicParsing).Content.Trim().ToUpperInvariant()
+    } catch {
+        # Khong lay duoc ban dang chay thi bo qua phan doi chieu, van cho phat hanh.
+    }
+
+    Write-Host ""
+    Write-Host "============================================" -ForegroundColor Cyan
+    Write-Host "  SAP PHAT HANH"                              -ForegroundColor Cyan
+    Write-Host "============================================" -ForegroundColor Cyan
+    Write-Host ("  File nguon : " + $srcItem.Name)
+    Write-Host ("  Kich thuoc : " + [math]::Round($bytes.Length / 1KB) + " KB")
+    Write-Host ("  Day len    : $Owner/$Repo  ->  $Path")
+    if ($fixed.Count -gt 0) {
+        Write-Host "  Da tu sua  :"
+        foreach ($f in $fixed) { Write-Host "                 - $f" }
+    } else {
+        Write-Host "  Da tu sua  : khong phai sua gi"
+    }
+
+    if ($null -ne $liveHash -and $liveHash -eq $localHash) {
+        Write-Host ""
+        Write-Host "  LUU Y: noi dung GIONG HET ban dang chay." -ForegroundColor Yellow
+        Write-Host "  Phat hanh cung se khong thay doi gi tren may nguoi dung." -ForegroundColor Yellow
+    }
+
+    Write-Host ""
+    Write-Host "  Moi may da cai add-in se tu nhan ban nay." -ForegroundColor Yellow
+    Write-Host ""
+    $confirm = Read-Host "Go 'c' roi Enter de phat hanh (bat ky phim nao khac = huy)"
+    if ($confirm -notmatch '^\s*[cC]\s*$') {
+        Write-Host ""
+        Write-Host "Da huy - khong co gi duoc day len." -ForegroundColor Yellow
+        Write-Host "File goc cua ban khong bi thay doi." -ForegroundColor Yellow
+        exit 0
+    }
+
     # --- Lay sha cua ban dang phat hanh (de GitHub biet ta ghi de len ban nao) ---
     $token = Get-PublishToken
     $headers = @{

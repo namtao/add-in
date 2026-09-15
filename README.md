@@ -113,7 +113,20 @@ Không có số version nào phải tăng, sửa nội dung là đủ.
 
 Tên file đặt gì cũng được. Script luôn phát hành vào đúng `release/LINK.xlam`.
 
+**Bước 3.** Script kiểm tra, tự sửa những gì thiếu, rồi hiện bảng tóm tắt và
+**hỏi xác nhận**. Gõ `c` rồi Enter để phát hành. Bấm phím khác hoặc Enter trống
+là huỷ, không có gì được đẩy lên.
+
 Xong. Script báo *"Da phat hanh thanh cong"* là đã lên.
+
+> 🧪 **Muốn chạy thử mà không phát hành?** Cứ kéo thả như bình thường rồi **trả
+> lời "không"** ở bước xác nhận. File vẫn được kiểm tra và vá đầy đủ, script vẫn
+> báo cáo đã sửa những gì, nhưng không có gì rời khỏi máy bạn. Đây là cách an
+> toàn để thử lần đầu.
+
+> Bảng xác nhận cũng báo nếu nội dung **giống hệt bản đang chạy** — lúc đó phát
+> hành cũng không thay đổi gì trên máy người dùng, thường là dấu hiệu bạn chọn
+> nhầm file hoặc quên lưu.
 
 > ⏱️ Máy người dùng có thể mất **tới 5 phút** mới thấy bản mới (GitHub cache file
 > khoảng 5 phút). Trong lúc đó họ vẫn dùng bản cũ bình thường — không lỗi gì.
