@@ -113,20 +113,19 @@ Không có số version nào phải tăng, sửa nội dung là đủ.
 
 Tên file đặt gì cũng được. Script luôn phát hành vào đúng `release/LINK.xlam`.
 
-**Bước 3.** Script kiểm tra, tự sửa những gì thiếu, rồi hiện bảng tóm tắt và
-**hỏi xác nhận**. Gõ `c` rồi Enter để phát hành. Bấm phím khác hoặc Enter trống
-là huỷ, không có gì được đẩy lên.
+**Bước 3.** Script hỏi đúng một câu:
+
+```
+Phat hanh? (y/n):
+```
+
+Gõ `y` rồi Enter để phát hành. Bấm phím khác hoặc Enter trống là huỷ, không có gì
+được đẩy lên.
 
 Xong. Script báo *"Da phat hanh thanh cong"* là đã lên.
 
-> 🧪 **Muốn chạy thử mà không phát hành?** Cứ kéo thả như bình thường rồi **trả
-> lời "không"** ở bước xác nhận. File vẫn được kiểm tra và vá đầy đủ, script vẫn
-> báo cáo đã sửa những gì, nhưng không có gì rời khỏi máy bạn. Đây là cách an
-> toàn để thử lần đầu.
-
-> Bảng xác nhận cũng báo nếu nội dung **giống hệt bản đang chạy** — lúc đó phát
-> hành cũng không thay đổi gì trên máy người dùng, thường là dấu hiệu bạn chọn
-> nhầm file hoặc quên lưu.
+> 🧪 **Muốn chạy thử mà không phát hành?** Cứ kéo thả như bình thường rồi trả lời
+> `n`. File vẫn được kiểm tra và vá đầy đủ nhưng không có gì rời khỏi máy bạn.
 
 > ⏱️ Máy người dùng có thể mất **tới 5 phút** mới thấy bản mới (GitHub cache file
 > khoảng 5 phút). Trong lúc đó họ vẫn dùng bản cũ bình thường — không lỗi gì.
@@ -137,19 +136,15 @@ Xong. Script báo *"Da phat hanh thanh cong"* là đã lên.
 > người sửa tại một thời điểm**. Ai phát hành sau sẽ ghi đè lên bản của người
 > trước (bản cũ vẫn còn trong lịch sử, lấy lại được).
 
-> 🛡️ **Script tự kiểm tra và tự sửa trước khi đẩy lên.** Nếu file bạn kéo vào
-> thiếu module tự cập nhật, thiếu đoạn gọi trong `ThisWorkbook`, quên bật
-> `IsAddin`, hoặc còn là `.xlsm` chưa chuyển sang add-in, `publish.bat` **tự xử lý
-> hết** rồi mới phát hành. Nó báo rõ đã làm những gì. Bạn không phải nhớ thao tác
-> Excel nào cả — kể cả bước `Save As` sang `.xlam`.
+> 🛡️ **Script tự lo hết phần kỹ thuật, trong im lặng.** Nếu file thiếu module tự
+> cập nhật, thiếu đoạn gọi trong `ThisWorkbook`, quên bật `IsAddin`, hoặc còn là
+> `.xlsm` chưa chuyển sang add-in, nó tự xử lý rồi mới phát hành — không hỏi, không
+> báo cáo. Bạn không phải nhớ thao tác Excel nào, kể cả bước `Save As` sang `.xlam`.
 >
-> Script làm việc trên một **bản sao** trong thư mục tạm — file gốc của bạn không
-> bị đụng tới. Sau khi vá, nó kiểm tra lại lần nữa; nếu vẫn chưa đạt thì từ chối
-> phát hành chứ không đẩy bừa lên.
->
-> Lần đầu chạy, script có thể xin bật một tuỳ chọn Excel tên *"Trust access to the
-> VBA project object model"* — cần nó để đọc và sửa được phần code VBA. Bấm `C`
-> đồng ý là xong, thiết lập này chỉ phải bật một lần.
+> Script làm việc trên một **bản sao** trong thư mục tạm, file gốc của bạn không bị
+> đụng tới. Sau khi vá nó kiểm tra lại lần nữa; chưa đạt thì từ chối phát hành chứ
+> không đẩy bừa lên. Và [cổng chặn trên GitHub](#c1-nhúng-module-tự-cập-nhật-vào-linkxlam)
+> vẫn soi lại lần nữa sau đó.
 >
 > Thói quen an toàn vẫn nên giữ: **sửa trên bản mới nhất lấy từ repo**, đừng dùng
 > file cũ nằm sẵn trong Downloads.
@@ -254,9 +249,8 @@ chạy một lần. Từ đó về sau họ tự nhận mọi bản mới.
 | Không máy nào cập nhật được | `version.txt` lệch với `LINK.xlam`. Phát hành lại theo B2 là tự khớp. |
 | `publish.bat` báo *"noi dung giong het ban dang phat hanh"* | File không đổi so với bản đang chạy. Sửa gì đó rồi lưu lại. |
 | `publish.bat` báo token không hợp lệ / hết hạn | Token hết hạn hoặc bị thu hồi. Xin token mới từ chủ repo (C2). |
-| `publish.bat` báo file thiếu module / thiếu `Workbook_Open` / chưa bật `IsAddin` | Script tự thêm giúp rồi phát hành, bạn không phải làm gì. Nhưng nên sửa luôn **file gốc** theo những điểm nó liệt kê, để lần sau khỏi phải vá. |
 | `publish.bat` báo đuôi file không nhận được | Chỉ nhận `.xlam` và `.xlsm`. File `.xlsx` không chứa macro nên không phải add-in LINK. |
-| `publish.bat` xin bật *"Trust access to the VBA project object model"* | Bấm `C` đồng ý. Đây là thiết lập của riêng tài khoản Windows đó, không cần quyền admin, và chỉ phải bật một lần. |
+| `publish.bat` báo *"Excel dang chan script doc phan code VBA"* | Đóng **hết** Excel rồi chạy lại — Excel chỉ đọc thiết lập bảo mật lúc khởi động. Vẫn lỗi thì máy có thể bị chính sách công ty khoá, script in sẵn các bước kiểm tra. |
 | GitHub Action báo đỏ, `version.txt` không đổi | File vừa đẩy lên không qua được kiểm tra. Máy người dùng **vẫn an toàn** — không máy nào đổi sang bản hỏng. Xem log Action để biết thiếu gì, sửa file gốc rồi phát hành lại. |
 | `publish.bat` báo *"khong du quyen"* | Token thiếu quyền `Contents: Read and write`. Tạo lại token theo C2. |
 | `publish.bat` báo có người push cùng lúc | Chạy lại `publish.bat` một lần nữa. |

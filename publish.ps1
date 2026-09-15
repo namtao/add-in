@@ -174,24 +174,6 @@ function Enable-VbomAccess {
     return $changed
 }
 
-# Hoi nguoi dung roi bat. Tra ve $true neu da bat duoc.
-function Request-VbomAccess {
-    Write-Host ""
-    Write-Host "Can bat mot tuy chon cua Excel truoc khi tiep tuc." -ForegroundColor Yellow
-    Write-Host "  Ten tuy chon: 'Trust access to the VBA project object model'"
-    Write-Host "  De lam gi   : cho script doc va sua phan code VBA trong file."
-    Write-Host "  Anh huong   : chi tai khoan Windows nay, khong can quyen admin."
-    Write-Host ""
-    $answer = Read-Host "Bat ngay bay gio? (C/k)"
-    if ($answer -ne '' -and $answer -notmatch '^[cCyY]') { return $false }
-
-    if (-not (Enable-VbomAccess)) {
-        throw "Khong tim thay thiet lap Excel tren may nay. Excel da duoc cai chua?"
-    }
-    Write-Host "Da bat." -ForegroundColor Green
-    return $true
-}
-
 function Get-ThisWorkbookComponent {
     param($Workbook, $Project)
 
@@ -356,7 +338,6 @@ Neu file cua ban la .xlsx thi no khong chua macro, khong phai add-in LINK.
 Ten file dat gi cung duoc - script luon day len dung duong dan release/LINK.xlam.
 "@
 }
-$isXlsm = ($srcExt -eq '.xlsm')
 
 $bytes = [IO.File]::ReadAllBytes($SrcPath)
 if ($bytes.Length -lt $MinBytes) {
@@ -384,151 +365,51 @@ try {
         throw "File khong chua ma VBA nao. Day khong phai add-in LINK."
     }
 
-    # File .xlsm thi chac chan phai xu ly: doi dinh dang va bat IsAddin.
-    $needRepair = $isXlsm -or -not ($state.IsAddinType -and $state.IsAddinFlag -and $state.HasModule)
-
-    Write-Host "Dang kiem tra file..." -ForegroundColor Cyan
-
     $basPath = Join-Path $workDir 'modAutoUpdate.bas'
     Invoke-WebRequest -Uri $ModuleUrl -OutFile $basPath -UseBasicParsing
 
-    # Hoi TRUOC khi mo Excel. Khong doi den luc loi xay ra, vi khi bi chan thi
-    # Excel khong bao gi ca - no chi tra ve $null - nen doi loi la khong chac chan.
-    if (-not (Test-VbomAccess)) {
-        if (-not (Request-VbomAccess)) {
-            throw @"
-Khong the tiep tuc khi chua bat tuy chon do.
+    # Bat quyen doc VBA project neu chua bat. Lam im lang, khong hoi: day la
+    # thiet lap cua rieng tai khoan Windows nay, khong can quyen admin, va
+    # khong bat thi khong lam gi duoc.
+    if (-not (Test-VbomAccess)) { Enable-VbomAccess | Out-Null }
 
-Script can doc duoc phan code VBA de biet file co con kha nang tu cap nhat hay
-khong. Day la dieu kien bat buoc de phat hanh an toan.
-
-Ban co the tu bat bang tay:
-  Excel -> File -> Options -> Trust Center -> Trust Center Settings
-        -> Macro Settings -> tick "Trust access to the VBA project object model"
-"@
-        }
-    }
-
-    $fixed = @()
+    # Kiem tra va vá im lang. Khong in ra da sua gi - nguoi phat hanh khong can
+    # biet, va co in cung khong lam gi khac di. Cong chan tren GitHub van soi lai.
     $finalFile = $workFile
     try {
-        $r = Repair-Addin -SourceFile $workFile -ModuleBasPath $basPath -TargetXlam $targetFile
-        $fixed = $r.Fixed
-        $finalFile = $r.Path
+        $finalFile = (Repair-Addin -SourceFile $workFile -ModuleBasPath $basPath -TargetXlam $targetFile).Path
     } catch {
-        if ($_.Exception.Message -eq 'VBOM_BLOCKED') {
-            Write-Host ""
-            Write-Host "Excel van dang chan script doc phan code VBA." -ForegroundColor Yellow
-            if (Request-VbomAccess) {
-                Write-Host "Dang thu lai..." -ForegroundColor Green
-                # Excel doc thiet lap bao mat luc khoi dong tien trinh, nen phai
-                # de tien trinh cu thoat han roi mo tien trinh moi.
-                Start-Sleep -Seconds 3
-                try {
-                    $r = Repair-Addin -SourceFile $workFile -ModuleBasPath $basPath -TargetXlam $targetFile
-                    $fixed = $r.Fixed
-                    $finalFile = $r.Path
-                } catch {
-                    if ($_.Exception.Message -ne 'VBOM_BLOCKED') { throw }
-                    throw @"
-Da bat tuy chon roi ma Excel van chan truy cap VBA project.
+        if ($_.Exception.Message -ne 'VBOM_BLOCKED') { throw }
+
+        # Excel chi doc thiet lap bao mat luc khoi dong tien trinh. Neu vua bat
+        # o tren ma van bi chan thi thuong la dang bam vao mot tien trinh Excel
+        # cu - de no thoat han roi thu lai mot lan.
+        Start-Sleep -Seconds 3
+        try {
+            $finalFile = (Repair-Addin -SourceFile $workFile -ModuleBasPath $basPath -TargetXlam $targetFile).Path
+        } catch {
+            if ($_.Exception.Message -ne 'VBOM_BLOCKED') { throw }
+            throw @"
+Excel dang chan script doc phan code VBA cua file.
 
 Thu lan luot:
   1. Dong HET Excel dang mo (ke ca cua so an), roi chay lai publish.bat.
-     Excel chi doc thiet lap bao mat luc khoi dong, nen tien trinh cu con
-     song thi van dung thiet lap cu.
+     Excel chi doc thiet lap bao mat luc khoi dong tien trinh.
   2. Kiem tra bang tay da tick chua:
      Excel -> File -> Options -> Trust Center -> Trust Center Settings
            -> Macro Settings -> "Trust access to the VBA project object model"
   3. Neu may do cong ty quan ly, thiet lap nay co the bi chinh sach khoa.
      Lien he IT, hoac phat hanh tu mot may khac.
 "@
-                }
-            } else {
-                # Nguoi dung tu choi: khong doc duoc code VBA nua, chi con cac
-                # kiem tra o muc goi. Cong chan tren GitHub van se soi lai day du.
-                if ($isXlsm) {
-                    throw @"
-File .xlsm bat buoc phai qua Excel de chuyen sang dinh dang add-in .xlam,
-nen khong the bo qua buoc nay.
-
-Chay lai publish.bat va chon 'C' khi duoc hoi.
-"@
-                }
-                if ($needRepair) {
-                    throw @"
-File nay chua dat va script khong duoc phep tu vá.
-
-Thieu:
-$(if (-not $state.IsAddinType) { "  - khong phai dinh dang add-in (dang la workbook)`r`n" })$(if (-not $state.IsAddinFlag) { "  - chua bat IsAddin = True`r`n" })$(if (-not $state.HasModule) { "  - thieu module tu cap nhat modAutoUpdate`r`n" })
-Chay lai va chon 'C' de script tu xu ly, hoac sua tay roi phat hanh lai.
-"@
-                }
-                Write-Host "Bo qua buoc kiem tra sau. Cong chan tren GitHub van se soi lai." -ForegroundColor Yellow
-            }
-        } else {
-            throw
         }
-    }
-
-    if ($fixed.Count -gt 0) {
-        Write-Host ""
-        Write-Host "File con thieu vai thu - script da tu xu ly:" -ForegroundColor Yellow
-        foreach ($f in $fixed) { Write-Host "  - $f" -ForegroundColor Yellow }
-        Write-Host ""
-        Write-Host "Nen cap nhat lai file goc cua ban theo nhung diem tren, de lan sau" -ForegroundColor Yellow
-        Write-Host "khong phai vá nua." -ForegroundColor Yellow
-        Write-Host ""
-    } else {
-        Write-Host "File dat yeu cau." -ForegroundColor Green
     }
 
     $bytes = [IO.File]::ReadAllBytes($finalFile)
 
-    # --- Xac nhan truoc khi day len ---
-    # Buoc nay la co tinh: phat hanh se toi MOI may da cai add-in, nen nguoi
-    # phat hanh phai nhin thay minh sap day cai gi roi moi gat dau. Tra loi
-    # "khong" o day cung la cach chay thu: file van duoc kiem tra va vá day du,
-    # bao cao ra man hinh, nhung khong co gi roi khoi may.
-    $localHash = (Get-FileHash -LiteralPath $finalFile -Algorithm SHA256).Hash.ToUpperInvariant()
-
-    $liveHash = $null
-    try {
-        $nc = [Guid]::NewGuid().ToString('N')
-        $liveHash = (Invoke-WebRequest -Uri ($RawBase + 'release/version.txt?nc=' + $nc) `
-            -UseBasicParsing).Content.Trim().ToUpperInvariant()
-    } catch {
-        # Khong lay duoc ban dang chay thi bo qua phan doi chieu, van cho phat hanh.
-    }
-
-    Write-Host ""
-    Write-Host "============================================" -ForegroundColor Cyan
-    Write-Host "  SAP PHAT HANH"                              -ForegroundColor Cyan
-    Write-Host "============================================" -ForegroundColor Cyan
-    Write-Host ("  File nguon : " + $srcItem.Name)
-    Write-Host ("  Kich thuoc : " + [math]::Round($bytes.Length / 1KB) + " KB")
-    Write-Host ("  Day len    : $Owner/$Repo  ->  $Path")
-    if ($fixed.Count -gt 0) {
-        Write-Host "  Da tu sua  :"
-        foreach ($f in $fixed) { Write-Host "                 - $f" }
-    } else {
-        Write-Host "  Da tu sua  : khong phai sua gi"
-    }
-
-    if ($null -ne $liveHash -and $liveHash -eq $localHash) {
-        Write-Host ""
-        Write-Host "  LUU Y: noi dung GIONG HET ban dang chay." -ForegroundColor Yellow
-        Write-Host "  Phat hanh cung se khong thay doi gi tren may nguoi dung." -ForegroundColor Yellow
-    }
-
-    Write-Host ""
-    Write-Host "  Moi may da cai add-in se tu nhan ban nay." -ForegroundColor Yellow
-    Write-Host ""
-    $confirm = Read-Host "Go 'c' roi Enter de phat hanh (bat ky phim nao khac = huy)"
-    if ($confirm -notmatch '^\s*[cC]\s*$') {
-        Write-Host ""
-        Write-Host "Da huy - khong co gi duoc day len." -ForegroundColor Yellow
-        Write-Host "File goc cua ban khong bi thay doi." -ForegroundColor Yellow
+    # Chi hoi mot cau. Den day nghia la file da dat, khong con gi phai bao cao.
+    $confirm = Read-Host "Phat hanh? (y/n)"
+    if ($confirm -notmatch '^\s*[yY]\s*$') {
+        Write-Host "Da huy." -ForegroundColor Yellow
         exit 0
     }
 
