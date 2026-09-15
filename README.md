@@ -104,11 +104,14 @@ lần, script lưu mã hoá trên máy bạn và **không hỏi lại nữa**.
 
 ## B2. Mỗi lần phát hành
 
-**Bước 1.** Mở `LINK.xlam` bằng Excel, sửa nội dung / ribbon / VBA, **lưu**, đóng Excel.
+**Bước 1.** Mở file của bạn bằng Excel, sửa nội dung / ribbon / VBA, **lưu**, đóng Excel.
 
-Không có số version nào phải tăng — sửa nội dung là đủ.
+Dùng file `.xlsm` hay `.xlam` đều được — cứ làm việc trên file bạn quen dùng.
+Không có số version nào phải tăng, sửa nội dung là đủ.
 
-**Bước 2.** **Kéo file `LINK.xlam` vừa lưu, thả vào icon `publish.bat`.**
+**Bước 2.** **Kéo file vừa lưu, thả vào icon `publish.bat`.**
+
+Tên file đặt gì cũng được. Script luôn phát hành vào đúng `release/LINK.xlam`.
 
 Xong. Script báo *"Da phat hanh thanh cong"* là đã lên.
 
@@ -121,13 +124,22 @@ Xong. Script báo *"Da phat hanh thanh cong"* là đã lên.
 > người sửa tại một thời điểm**. Ai phát hành sau sẽ ghi đè lên bản của người
 > trước (bản cũ vẫn còn trong lịch sử, lấy lại được).
 
-> 🛡️ **Script tự kiểm tra trước khi đẩy lên.** Nếu bạn lỡ chọn nhầm một bản
-> `LINK.xlam` cũ (bản chưa có module tự cập nhật), `publish.bat` **từ chối phát
-> hành** và báo cho bạn biết. Đây là lỗi làm hỏng cả hệ thống — mọi máy sẽ mất
-> khả năng tự cập nhật — nên script chặn cứng, không cho bỏ qua.
+> 🛡️ **Script tự kiểm tra và tự sửa trước khi đẩy lên.** Nếu file bạn kéo vào
+> thiếu module tự cập nhật, thiếu đoạn gọi trong `ThisWorkbook`, quên bật
+> `IsAddin`, hoặc còn là `.xlsm` chưa chuyển sang add-in, `publish.bat` **tự xử lý
+> hết** rồi mới phát hành. Nó báo rõ đã làm những gì. Bạn không phải nhớ thao tác
+> Excel nào cả — kể cả bước `Save As` sang `.xlam`.
 >
-> Thói quen an toàn: **luôn tải bản mới nhất từ repo về rồi sửa trên đó**, đừng
-> dùng file cũ nằm sẵn trong Downloads.
+> Script làm việc trên một **bản sao** trong thư mục tạm — file gốc của bạn không
+> bị đụng tới. Sau khi vá, nó kiểm tra lại lần nữa; nếu vẫn chưa đạt thì từ chối
+> phát hành chứ không đẩy bừa lên.
+>
+> Lần đầu chạy, script có thể xin bật một tuỳ chọn Excel tên *"Trust access to the
+> VBA project object model"* — cần nó để đọc và sửa được phần code VBA. Bấm `C`
+> đồng ý là xong, thiết lập này chỉ phải bật một lần.
+>
+> Thói quen an toàn vẫn nên giữ: **sửa trên bản mới nhất lấy từ repo**, đừng dùng
+> file cũ nằm sẵn trong Downloads.
 
 **Cách thay thế** — nếu bạn có tài khoản GitHub và đã được add làm Collaborator:
 vào https://github.com/namtao/add-in/tree/main/release → `Add file → Upload files`
@@ -157,21 +169,26 @@ dùng bản lỗi sẽ tự "cập nhật" ngược về bản cũ, qua đúng c
 
 ## C1. Nhúng module tự cập nhật vào LINK.xlam
 
-**Vì sao cần bước này:** code tự cập nhật (`modAutoUpdate`) nằm *bên trong* chính
-file `LINK.xlam`. Một file không thể tự cập nhật trước khi nó chứa đoạn code biết
-cách tự cập nhật — nên phải nhét code vào bằng tay đúng một lần đầu tiên. Sau khi
-làm xong và phát hành, mọi bản sau đều tự có sẵn, **không bao giờ phải làm lại**.
+**Vì sao cần:** code tự cập nhật (`modAutoUpdate`) nằm *bên trong* chính file
+`LINK.xlam`, và nó chỉ chạy khi `ThisWorkbook` gọi nó lúc Excel mở file. Thiếu
+một trong hai thứ đó thì add-in mất khả năng tự cập nhật — và hỏng âm thầm, nhìn
+bề ngoài vẫn chạy bình thường.
 
-Bước này bắt buộc làm thủ công vì VBA nằm trong `vbaProject.bin` — file nhị phân
-biên dịch, chỉ ghi được bằng chính Excel trên Windows.
+**Hiện `publish.bat` tự lo việc này**, nên bạn không phải làm tay nữa. Mỗi lần
+phát hành, nó kiểm tra file và tự thêm những gì còn thiếu. Mục này giữ lại để
+bạn biết chuyện gì đang diễn ra bên dưới, và để làm thủ công khi cần.
 
-Cần một máy Windows có Excel.
+**Kiểm tra một file bất kỳ đã đủ chưa**, trên máy Linux/macOS hoặc trong CI:
 
-> Trước khi làm xong bước này, `publish.bat` sẽ từ chối phát hành file
-> `release/LINK.xlam` hiện tại — đúng như thiết kế, vì nó chưa có module.
+```bash
+python3 scripts/validate-addin.py duong-dan-toi-file.xlam
+```
 
-**Kiểm tra đã làm chưa:** mở `release/LINK.xlam`, bấm `Alt+F11`, nhìn cột trái —
-có module tên `modAutoUpdate` không? Có rồi thì bỏ qua mục này.
+Script đọc thẳng mã nguồn VBA bên trong file (giải nén `vbaProject.bin` theo đúng
+định dạng MS-OVBA) nên kết luận là chắc chắn, không phải đoán. Cũng chính script
+này chạy trên GitHub Actions mỗi lần `release/LINK.xlam` thay đổi.
+
+**Làm thủ công**, nếu muốn tự tay nhúng thay vì để `publish.bat` làm:
 
 1. Tải `release/LINK.xlam` về máy, mở bằng Excel (Enable Content nếu hỏi)
 2. `Alt+F11` mở VBE
@@ -182,6 +199,11 @@ có module tên `modAutoUpdate` không? Có rồi thì bỏ qua mục này.
 5. `Debug → Compile VBAProject` — phải **không báo lỗi**
 6. `Ctrl+S` lưu, đóng Excel
 7. Phát hành file này theo **B2**
+
+> ⚠️ **Sửa trên file gốc, đừng chỉ sửa bản `.xlam` xuất ra.** Nếu bạn làm việc
+> trên một file `.xlsm` rồi mới xuất sang `.xlam`, hãy dán đoạn `Workbook_Open`
+> vào **chính file `.xlsm` gốc** đó. Chỉ sửa bản xuất ra thì lần sau xuất lại,
+> thiếu sót quay về y nguyên.
 
 ## C2. Tạo token phát hành
 
@@ -219,6 +241,9 @@ chạy một lần. Từ đó về sau họ tự nhận mọi bản mới.
 | Không máy nào cập nhật được | `version.txt` lệch với `LINK.xlam`. Phát hành lại theo B2 là tự khớp. |
 | `publish.bat` báo *"noi dung giong het ban dang phat hanh"* | File không đổi so với bản đang chạy. Sửa gì đó rồi lưu lại. |
 | `publish.bat` báo token không hợp lệ / hết hạn | Token hết hạn hoặc bị thu hồi. Xin token mới từ chủ repo (C2). |
-| `publish.bat` báo *"File nay CHUA co module tu cap nhat"* | Bạn đang sửa nhầm bản `.xlam` cũ. Tải bản mới nhất từ repo về, sửa lại trên đó rồi phát hành. |
+| `publish.bat` báo file thiếu module / thiếu `Workbook_Open` / chưa bật `IsAddin` | Script tự thêm giúp rồi phát hành, bạn không phải làm gì. Nhưng nên sửa luôn **file gốc** theo những điểm nó liệt kê, để lần sau khỏi phải vá. |
+| `publish.bat` báo đuôi file không nhận được | Chỉ nhận `.xlam` và `.xlsm`. File `.xlsx` không chứa macro nên không phải add-in LINK. |
+| `publish.bat` xin bật *"Trust access to the VBA project object model"* | Bấm `C` đồng ý. Đây là thiết lập của riêng tài khoản Windows đó, không cần quyền admin, và chỉ phải bật một lần. |
+| GitHub Action báo đỏ, `version.txt` không đổi | File vừa đẩy lên không qua được kiểm tra. Máy người dùng **vẫn an toàn** — không máy nào đổi sang bản hỏng. Xem log Action để biết thiếu gì, sửa file gốc rồi phát hành lại. |
 | `publish.bat` báo *"khong du quyen"* | Token thiếu quyền `Contents: Read and write`. Tạo lại token theo C2. |
 | `publish.bat` báo có người push cùng lúc | Chạy lại `publish.bat` một lần nữa. |

@@ -2,7 +2,9 @@
 rem ============================================================
 rem  Phat hanh ban LINK.xlam moi len GitHub.
 rem
-rem  CACH DUNG: keo tha file LINK.xlam da sua vao icon file nay.
+rem  CACH DUNG: keo tha MOT file .xlam hoac .xlsm da sua vao icon file nay.
+rem  Ten file dat gi cung duoc. Script tu kiem tra, tu bo sung nhung gi con
+rem  thieu (module tu cap nhat, co IsAddin, doi .xlsm sang .xlam) roi moi day len.
 rem
 rem  KHONG can cai Git. KHONG can tai khoan GitHub. Chi can mot token
 rem  phat hanh do nguoi quan tri gui rieng - dan mot lan o lan chay dau
@@ -24,8 +26,10 @@ echo.
 if "%~1"=="" (
     echo Chua chon file de phat hanh.
     echo.
-    echo Hay KEO THA file LINK.xlam da sua vao icon publish.bat nay,
+    echo Hay KEO THA file .xlam hoac .xlsm da sua vao icon publish.bat nay,
     echo thay vi double-click vao no.
+    echo.
+    echo Chi keo MOT file. Ten file dat gi cung duoc.
     echo.
     pause
     exit /b 1
