@@ -5,3 +5,7 @@ docs.md
 # File tam khi lam viec voi add-in
 *.update.xlam
 ~$*.xlam
+
+# Rac Python sinh ra khi chay scripts/
+__pycache__/
+*.py[cod]

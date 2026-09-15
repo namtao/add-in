@@ -7,6 +7,16 @@ name: Cap nhat version.txt
 #
 # publish.bat van dung duoc song song: no da ghi san version.txt dung, nen
 # workflow nay chay xong thay checksum da khop va thoat, khong commit gi them.
+#
+# Truoc khi ghi checksum, file .xlam phai qua duoc scripts/validate-addin.py.
+# Do la cong chan cuoi cung va la cong quan trong nhat: may nguoi dung chi cap
+# nhat khi checksum trong version.txt khop voi file tai ve. Neu file khong dat,
+# workflow bao loi va KHONG dong vao version.txt - version.txt van tro ve ban
+# cu tot, nen khong may nao doi sang ban hong. File hong nam lai trong repo
+# nhung vo hai.
+#
+# Cong nay bat duoc ca truong hop upload thang qua giao dien web GitHub, la
+# duong di khong he chay qua publish.bat.
 
 on:
   push:
@@ -23,6 +33,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+
+      - name: Kiem tra LINK.xlam co du dieu kien phat hanh khong
+        run: python3 scripts/validate-addin.py release/LINK.xlam
 
       - name: Tinh SHA256 va cap nhat version.txt
         run: |
