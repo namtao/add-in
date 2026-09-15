@@ -139,18 +139,57 @@ function Get-PackageState {
 
 # Doc/ghi VBProject qua COM doi Excel bat "Trust access to the VBA project
 # object model". Mac dinh tat. Day la khoa trong HKCU nen khong can quyen admin.
-function Enable-VbomAccess {
-    $changed = $false
+function Get-ExcelSecurityKeys {
+    $keys = @()
     $roots = Get-ChildItem 'HKCU:\Software\Microsoft\Office' -ErrorAction SilentlyContinue |
              Where-Object { $_.PSChildName -match '^\d+\.\d+$' }
     foreach ($r in $roots) {
-        $sec = Join-Path $r.PSPath 'Excel\Security'
+        $excel = Join-Path $r.PSPath 'Excel'
+        if (Test-Path $excel) { $keys += (Join-Path $excel 'Security') }
+    }
+    return $keys
+}
+
+function Test-VbomAccess {
+    foreach ($sec in Get-ExcelSecurityKeys) {
+        if (Test-Path $sec) {
+            $v = (Get-ItemProperty -Path $sec -Name 'AccessVBOM' -ErrorAction SilentlyContinue).AccessVBOM
+            if ($v -eq 1) { return $true }
+        }
+    }
+    return $false
+}
+
+function Enable-VbomAccess {
+    $changed = $false
+    foreach ($sec in Get-ExcelSecurityKeys) {
+        if (-not (Test-Path $sec)) {
+            New-Item -Path $sec -Force -ErrorAction SilentlyContinue | Out-Null
+        }
         if (Test-Path $sec) {
             Set-ItemProperty -Path $sec -Name 'AccessVBOM' -Value 1 -Type DWord
             $changed = $true
         }
     }
     return $changed
+}
+
+# Hoi nguoi dung roi bat. Tra ve $true neu da bat duoc.
+function Request-VbomAccess {
+    Write-Host ""
+    Write-Host "Can bat mot tuy chon cua Excel truoc khi tiep tuc." -ForegroundColor Yellow
+    Write-Host "  Ten tuy chon: 'Trust access to the VBA project object model'"
+    Write-Host "  De lam gi   : cho script doc va sua phan code VBA trong file."
+    Write-Host "  Anh huong   : chi tai khoan Windows nay, khong can quyen admin."
+    Write-Host ""
+    $answer = Read-Host "Bat ngay bay gio? (C/k)"
+    if ($answer -ne '' -and $answer -notmatch '^[cCyY]') { return $false }
+
+    if (-not (Enable-VbomAccess)) {
+        throw "Khong tim thay thiet lap Excel tren may nay. Excel da duoc cai chua?"
+    }
+    Write-Host "Da bat." -ForegroundColor Green
+    return $true
 }
 
 function Get-ThisWorkbookComponent {
@@ -196,10 +235,16 @@ function Repair-Addin {
 
         $wb = $xl.Workbooks.Open($SourceFile)
 
+        # Khi Excel chan truy cap VBA project, PowerShell KHONG nem loi ma tra
+        # ve $null. Phai kiem tra null, neu khong thi $vbp.VBComponents lang le
+        # cho ra null va vo o cho khac, kho lan ra nguyen nhan.
         $vbp = $null
         try {
             $vbp = $wb.VBProject
         } catch {
+            $vbp = $null
+        }
+        if ($null -eq $vbp -or $null -eq $vbp.VBComponents) {
             throw 'VBOM_BLOCKED'
         }
 
@@ -347,6 +392,23 @@ try {
     $basPath = Join-Path $workDir 'modAutoUpdate.bas'
     Invoke-WebRequest -Uri $ModuleUrl -OutFile $basPath -UseBasicParsing
 
+    # Hoi TRUOC khi mo Excel. Khong doi den luc loi xay ra, vi khi bi chan thi
+    # Excel khong bao gi ca - no chi tra ve $null - nen doi loi la khong chac chan.
+    if (-not (Test-VbomAccess)) {
+        if (-not (Request-VbomAccess)) {
+            throw @"
+Khong the tiep tuc khi chua bat tuy chon do.
+
+Script can doc duoc phan code VBA de biet file co con kha nang tu cap nhat hay
+khong. Day la dieu kien bat buoc de phat hanh an toan.
+
+Ban co the tu bat bang tay:
+  Excel -> File -> Options -> Trust Center -> Trust Center Settings
+        -> Macro Settings -> tick "Trust access to the VBA project object model"
+"@
+        }
+    }
+
     $fixed = @()
     $finalFile = $workFile
     try {
@@ -356,22 +418,31 @@ try {
     } catch {
         if ($_.Exception.Message -eq 'VBOM_BLOCKED') {
             Write-Host ""
-            Write-Host "Excel dang chan script doc phan code VBA cua file." -ForegroundColor Yellow
-            Write-Host "Can bat mot lan tuy chon 'Trust access to the VBA project object model'."
-            Write-Host "Day la thiet lap cua rieng tai khoan Windows nay, khong can quyen admin."
-            Write-Host ""
-            $answer = Read-Host "Bat ngay bay gio? (C/k)"
-            if ($answer -eq '' -or $answer -match '^[cCyY]') {
-                if (Enable-VbomAccess) {
-                    Write-Host "Da bat. Dang thu lai..." -ForegroundColor Green
-                    # Excel doc thiet lap bao mat luc khoi dong tien trinh, nen
-                    # phai de tien trinh cu thoat han roi mo tien trinh moi.
-                    Start-Sleep -Seconds 3
+            Write-Host "Excel van dang chan script doc phan code VBA." -ForegroundColor Yellow
+            if (Request-VbomAccess) {
+                Write-Host "Dang thu lai..." -ForegroundColor Green
+                # Excel doc thiet lap bao mat luc khoi dong tien trinh, nen phai
+                # de tien trinh cu thoat han roi mo tien trinh moi.
+                Start-Sleep -Seconds 3
+                try {
                     $r = Repair-Addin -SourceFile $workFile -ModuleBasPath $basPath -TargetXlam $targetFile
                     $fixed = $r.Fixed
                     $finalFile = $r.Path
-                } else {
-                    throw "Khong tim thay thiet lap Excel tren may nay. Excel da duoc cai chua?"
+                } catch {
+                    if ($_.Exception.Message -ne 'VBOM_BLOCKED') { throw }
+                    throw @"
+Da bat tuy chon roi ma Excel van chan truy cap VBA project.
+
+Thu lan luot:
+  1. Dong HET Excel dang mo (ke ca cua so an), roi chay lai publish.bat.
+     Excel chi doc thiet lap bao mat luc khoi dong, nen tien trinh cu con
+     song thi van dung thiet lap cu.
+  2. Kiem tra bang tay da tick chua:
+     Excel -> File -> Options -> Trust Center -> Trust Center Settings
+           -> Macro Settings -> "Trust access to the VBA project object model"
+  3. Neu may do cong ty quan ly, thiet lap nay co the bi chinh sach khoa.
+     Lien he IT, hoac phat hanh tu mot may khac.
+"@
                 }
             } else {
                 # Nguoi dung tu choi: khong doc duoc code VBA nua, chi con cac
