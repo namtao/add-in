@@ -237,8 +237,11 @@ function Repair-Addin {
         $hasCall = $text -match '(?i)ScheduleUpdateCheck'
 
         if (-not $hasOpen) {
+            # Chen vao CUOI module, khong dung AddFromString: vi tri chen cua
+            # AddFromString khong duoc bao dam, ma neu no dat Sub len truoc dong
+            # "Option Explicit" co san thi VBA khong bien dich duoc.
             $snippet = "Private Sub Workbook_Open()`r`n    modAutoUpdate.ScheduleUpdateCheck`r`nEnd Sub"
-            $cm.AddFromString($snippet)
+            $cm.InsertLines($cm.CountOfLines + 1, $snippet)
             $fixed += 'them Workbook_Open goi modAutoUpdate.ScheduleUpdateCheck'
         } elseif (-not $hasCall) {
             # Da co Workbook_Open san - chi chen them dong goi vao trong, khong
