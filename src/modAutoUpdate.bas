@@ -85,7 +85,7 @@ Public Sub CheckForUpdate()
     staging = AddinFolder() & STAGING_NAME
 
     Dim remoteHash As String
-    remoteHash = Trim$(HttpGetText(GH_BASE & VERSION_FILE & "?nc=" & NoCache()))
+    remoteHash = CleanHash(HttpGetText(GH_BASE & VERSION_FILE & "?nc=" & NoCache()))
     If Len(remoteHash) = 0 Then GoTo Done
 
     Dim localHash As String
@@ -237,20 +237,29 @@ End Function
 
 Private Function HashViaDotNet(ByVal path As String) As String
     On Error GoTo fail
-    Dim st As Object, sha As Object
-    Dim bytes As Variant, digest As Variant
+    Dim f As Integer, n As Long, bytes() As Byte
+    Dim sha As Object, digest As Variant
+    Dim i As Long, s As String
 
-    Set st = CreateObject("ADODB.Stream")
-    st.Type = 1                       ' adTypeBinary
-    st.Open
-    st.LoadFromFile path
-    bytes = st.Read
-    st.Close
+    ' Doc bang lenh Open cua VBA, KHONG dung ADODB.Stream. ADODB.Stream mo file
+    ' o che do doc quyen nen no bao loi 3002 "File could not be opened" khi file
+    ' dang bi tien trinh khac giu - ma o day file can tinh checksum chinh la
+    ' LINK.xlam dang duoc Excel mo. Do la ly do bo tu cap nhat khong tinh noi
+    ' checksum cua chinh no va thoat im lang o moi phien.
+    f = FreeFile
+    Open path For Binary Access Read As #f
+    n = LOF(f)
+    If n = 0 Then
+        Close #f
+        Exit Function
+    End If
+    ReDim bytes(0 To n - 1)
+    Get #f, 1, bytes
+    Close #f
 
     Set sha = CreateObject("System.Security.Cryptography.SHA256Managed")
     digest = sha.ComputeHash_2((bytes))   ' ngoac kep de truyen ByVal
 
-    Dim i As Long, s As String
     For i = LBound(digest) To UBound(digest)
         s = s & Right$("0" & Hex$(digest(i)), 2)
     Next i
@@ -258,7 +267,7 @@ Private Function HashViaDotNet(ByVal path As String) As String
     Exit Function
 fail:
     On Error Resume Next
-    If Not st Is Nothing Then st.Close
+    Close #f
     HashViaDotNet = vbNullString
 End Function
 
@@ -278,7 +287,7 @@ Private Function HashViaPowerShell(ByVal path As String) As String
           "Out-File -Encoding ascii '" & outFile & "'" & q
 
     sh.Run cmd, 0, True               ' 0 = an cua so, True = doi chay xong
-    HashViaPowerShell = Trim$(ReadTextFile(outFile))
+    HashViaPowerShell = CleanHash(ReadTextFile(outFile))
     SafeKill outFile
     Exit Function
 fail:
@@ -391,6 +400,21 @@ End Function
 ' cache theo URL day du, va no khong ton gi.
 Private Function NoCache() As String
     NoCache = Format$(Now, "yyyymmddhhnnss")
+End Function
+
+' Giu lai dung cac ky tu hex. KHONG dung Trim$: Trim$ trong VBA chi cat dau
+' CACH, khong cat CR/LF. version.txt do GitHub Action ghi bang `echo "$HASH" >`
+' nen luon ket thuc bang newline, va chuoi con dinh newline lam MOI phep StrComp
+' sai - add-in tuong nhu co ban moi, tai ve, roi lai tuong file tai ve khong
+' khop server, xoa staging va thoat im lang. Lam sach o day de khong con phu
+' thuoc vao viec file tren server co newline hay khong.
+Private Function CleanHash(ByVal s As String) As String
+    Dim i As Long, ch As String, out As String
+    For i = 1 To Len(s)
+        ch = UCase$(Mid$(s, i, 1))
+        If (ch >= "0" And ch <= "9") Or (ch >= "A" And ch <= "F") Then out = out & ch
+    Next i
+    CleanHash = out
 End Function
 
 Private Sub SafeKill(ByVal path As String)

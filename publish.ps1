@@ -236,34 +236,21 @@ function Repair-Addin {
             if ($c.Name -eq 'modAutoUpdate') { $module = $c }
         }
 
-        # Dau hieu nhan biet ban module da sua loi Application.OnTime. Ban cu
-        # goi OnTime bang ten macro khong co tien to ten workbook, nen Excel di
-        # tim CheckForUpdate trong workbook dang active thay vi trong add-in va
-        # lich hen bi bo qua trong im lang - do la ly do bo tu cap nhat khong
-        # chay. Ban cu VAN co 'Sub CheckForUpdate' va van tro dung repo, nen neu
-        # chi kiem tra hai thu do thi module hong se duoc giu lai va file phat
-        # hanh ra tiep tuc chet lang.
+        # LUON thay module bang ban chuan vua tai tu repo, khong co dieu kien nao
+        # de giu lai ban cu. Truoc day cho giu lai neu ban cu "trong co ve dung",
+        # nhung moi lan phat hien them mot lop loi thi dau hieu nhan biet lai
+        # phai doi theo, va bat ky ban cu nao lot qua duoc dau hieu se duoc mang
+        # nguyen loi sang file phat hanh moi. Repo la nguon chuan duy nhat; thay
+        # het la xong, khong con gi de bo sot.
         $qualifiedOnTime = '"''!modAutoUpdate.CheckForUpdate"'
 
-        $needImport = $true
         if ($module) {
-            $text = Get-ComponentText -Component $module
-            if ($text.Contains('Sub CheckForUpdate') -and
-                $text.Contains($RawBase) -and
-                $text.Contains($qualifiedOnTime)) {
-                $needImport = $false
-            }
+            $vbp.VBComponents.Remove($module)
+            $fixed += 'thay module modAutoUpdate bang ban chuan tu repo'
+        } else {
+            $fixed += 'them module tu cap nhat modAutoUpdate'
         }
-
-        if ($needImport) {
-            if ($module) {
-                $vbp.VBComponents.Remove($module)
-                $fixed += 'thay module modAutoUpdate cu bang ban chuan tu repo'
-            } else {
-                $fixed += 'them module tu cap nhat modAutoUpdate'
-            }
-            $vbp.VBComponents.Import($ModuleBasPath) | Out-Null
-        }
+        $vbp.VBComponents.Import($ModuleBasPath) | Out-Null
 
         # --- 2. Doan goi trong ThisWorkbook ---
         $twb = Get-ThisWorkbookComponent -Workbook $wb -Project $vbp

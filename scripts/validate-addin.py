@@ -296,6 +296,16 @@ def validate(path):
                 "workbook, nen CheckForUpdate se khong bao gio chay. Ten macro phai "
                 'co dang "\'" & ThisWorkbook.Name & "\'!modAutoUpdate.CheckForUpdate".'
             )
+        # Trim$ trong VBA khong cat CR/LF, ma version.txt luon ket thuc bang
+        # newline. Ban dung Trim$ de lam sach checksum se so sanh sai o MOI phep
+        # StrComp va khong bao gio cap nhat duoc, hoan toan im lang. CleanHash
+        # la ham loc lay dung ky tu hex, thay cho Trim$.
+        if "CleanHash" not in body:
+            errors.append(
+                "modAutoUpdate khong co CleanHash de lam sach checksum. Dung Trim$ "
+                "la sai vi no khong cat CR/LF, ma version.txt luon co newline o "
+                "cuoi - moi phep so sanh checksum se that bai trong im lang."
+            )
         if EXPECTED_RAW_BASE not in auto:
             errors.append(
                 "modAutoUpdate dang tro toi mot dia chi khac, khong phai repo nay "
