@@ -132,26 +132,12 @@ Private Function UserAcceptsUpdate() As Boolean
     On Error Resume Next
     Dim msg As String, title As String
 
-    msg = ChrW(272) & ChrW(227) & " c" & ChrW(243) & " b" & ChrW(7843) & _
-          "n c" & ChrW(7853) & "p nh" & ChrW(7853) & "t m" & ChrW(7899) & _
-          "i cho add-in LINK."
-    msg = msg & vbCrLf & vbCrLf
-    msg = msg & "B" & ChrW(7845) & "m OK: Excel s" & ChrW(7869) & " l" & _
-          ChrW(432) & "u c" & ChrW(225) & "c file " & ChrW(273) & _
-          "ang m" & ChrW(7903) & ", " & ChrW(273) & ChrW(243) & "ng l" & _
-          ChrW(7841) & "i " & ChrW(273) & ChrW(7875) & " c" & ChrW(7853) & _
-          "p nh" & ChrW(7853) & "t, r" & ChrW(7891) & "i t" & ChrW(7921) & _
-          " m" & ChrW(7903) & " l" & ChrW(7841) & "i." & vbCrLf
-    msg = msg & "B" & ChrW(7845) & "m Cancel: b" & ChrW(7887) & " qua l" & _
-          ChrW(7847) & "n n" & ChrW(224) & "y, l" & ChrW(7847) & "n m" & _
-          ChrW(7903) & " Excel sau s" & ChrW(7869) & " h" & ChrW(7887) & _
-          "i l" & ChrW(7841) & "i." & vbCrLf
+    msg = "Co ban cap nhat moi cho add-in." & vbCrLf & vbCrLf & _
+          "OK     : cap nhat ngay (Excel se dong va mo lai)." & vbCrLf & _
+          "Cancel : bo qua, lan mo Excel sau se hoi lai."
+    title = "Cap nhat add-in"
 
-    title = "C" & ChrW(7853) & "p nh" & ChrW(7853) & "t add-in LINK"
-
-    ' Dung VBA.MsgBox tuong minh: chuoi da la Unicode (ChrW) nen hien dung dau.
-    ' vbMsgBoxSetForeground de hop thoai khong bi lap sau cua so khac luc Excel
-    ' vua khoi dong xong.
+    ' vbMsgBoxSetForeground: hop thoai hien len tren cung, khong bi che.
     UserAcceptsUpdate = (VBA.MsgBox(msg, _
         vbOKCancel Or vbInformation Or vbMsgBoxSetForeground, title) = vbOK)
 End Function
