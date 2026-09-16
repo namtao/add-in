@@ -236,10 +236,21 @@ function Repair-Addin {
             if ($c.Name -eq 'modAutoUpdate') { $module = $c }
         }
 
+        # Dau hieu nhan biet ban module da sua loi Application.OnTime. Ban cu
+        # goi OnTime bang ten macro khong co tien to ten workbook, nen Excel di
+        # tim CheckForUpdate trong workbook dang active thay vi trong add-in va
+        # lich hen bi bo qua trong im lang - do la ly do bo tu cap nhat khong
+        # chay. Ban cu VAN co 'Sub CheckForUpdate' va van tro dung repo, nen neu
+        # chi kiem tra hai thu do thi module hong se duoc giu lai va file phat
+        # hanh ra tiep tuc chet lang.
+        $qualifiedOnTime = '"''!modAutoUpdate.CheckForUpdate"'
+
         $needImport = $true
         if ($module) {
             $text = Get-ComponentText -Component $module
-            if ($text.Contains('Sub CheckForUpdate') -and $text.Contains($RawBase)) {
+            if ($text.Contains('Sub CheckForUpdate') -and
+                $text.Contains($RawBase) -and
+                $text.Contains($qualifiedOnTime)) {
                 $needImport = $false
             }
         }
@@ -302,7 +313,9 @@ function Repair-Addin {
 
         $okModule = $false
         foreach ($c in $vbp.VBComponents) {
-            if ($c.Name -eq 'modAutoUpdate') { $okModule = $true }
+            if ($c.Name -eq 'modAutoUpdate') {
+                $okModule = (Get-ComponentText -Component $c).Contains($qualifiedOnTime)
+            }
         }
 
         if (-not ($okOpen -and $okCall -and $okModule -and $wb.IsAddin)) {

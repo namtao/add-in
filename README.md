@@ -1,13 +1,13 @@
 # LINK add-in
 
 Add-in ribbon Excel dùng chung của công ty. Cài một lần, sau đó **tự cập nhật** —
-người dùng không phải làm gì khi có bản mới.
+khi có bản mới, add-in hỏi một câu lúc mở Excel, bấm OK là xong.
 
 ## Bạn cần đọc phần nào
 
 | Bạn là | Lần đầu | Các lần sau |
 |---|---|---|
-| **Người dùng add-in** | [A1 — Cài đặt](#a1-lần-đầu--cài-add-in) | [A2 — Không phải làm gì](#a2-các-lần-sau--không-phải-làm-gì) |
+| **Người dùng add-in** | [A1 — Cài đặt](#a1-lần-đầu--cài-add-in) | [A2 — Bấm OK khi được hỏi](#a2-các-lần-sau--chỉ-bấm-ok-khi-được-hỏi) |
 | **Người phát hành bản mới** | [B1 — Chuẩn bị](#b1-lần-đầu--chuẩn-bị-một-lần) | [B2 — Kéo thả để phát hành](#b2-mỗi-lần-phát-hành) |
 | **Chủ repo, dựng hệ thống** | [C — Thiết lập ban đầu](#c-thiết-lập-ban-đầu--chủ-repo-làm-một-lần-duy-nhất) | — |
 
@@ -36,15 +36,31 @@ Cài đúng **một lần**. Không cần tài khoản gì, không cần quyền
 > ⚠️ **Click đúp vào file `.xlam` KHÔNG cài được add-in** — nó chỉ mở tạm cho
 > phiên Excel đang chạy, đóng Excel là mất. Phải chạy `install.bat`.
 
-## A2. Các lần sau — không phải làm gì
+## A2. Các lần sau — chỉ bấm OK khi được hỏi
 
-**Bạn không phải làm gì cả.** Không phải tải lại, không phải chạy lại `install.bat`.
+Không phải tải lại, không phải chạy lại `install.bat`.
 
-Cơ chế chạy ngầm: mỗi lần mở Excel, add-in tự kiểm tra có bản mới không. Có thì
-tải về im lặng, rồi **thay file lúc bạn đóng hết Excel**. Lần mở Excel sau đã là
-bản mới.
+Mỗi lần mở Excel, add-in âm thầm kiểm tra có bản mới không. **Chỉ khi thực sự có
+bản mới đã tải xong và kiểm tra đạt**, nó mới hiện một hộp thoại:
 
-Không hộp thoại, không gián đoạn công việc. Không có mạng thì bỏ qua, lần sau thử lại.
+> Đã có bản cập nhật mới cho add-in LINK.
+>
+> Bấm **OK**: Excel sẽ lưu các file đang mở, đóng lại để cập nhật, rồi tự mở lại.
+> Bấm **Cancel**: bỏ qua lần này, lần mở Excel sau sẽ hỏi lại.
+
+**Bấm OK** — Excel lưu mọi file bạn từng lưu trước đó, tự đóng, thay add-in, rồi
+tự mở lại. Mất khoảng 5–10 giây và bạn không phải thao tác gì thêm.
+
+**Bấm Cancel** nếu đang dở việc — add-in cũ chạy tiếp bình thường, lần mở Excel
+sau sẽ hỏi lại.
+
+> File **chưa từng được lưu lần nào** (Book1 mới gõ, chưa đặt tên) thì Excel vẫn
+> hỏi bạn chọn chỗ lưu như mọi khi — add-in không tự quyết định thay bạn và cũng
+> không vứt dữ liệu đi. Nếu bạn bấm Cancel ở hộp thoại lưu đó thì Excel không
+> đóng, lần cập nhật này bỏ dở và lần mở Excel sau sẽ hỏi lại.
+
+Không có mạng thì bỏ qua trong im lặng, lần sau thử lại. Không bao giờ có hộp
+thoại báo lỗi.
 
 ## A3. Gỡ add-in
 
@@ -157,11 +173,13 @@ vào https://github.com/namtao/add-in/tree/main/release → `Add file → Upload
 
 Trên một máy đã cài add-in:
 
-1. Mở Excel, đợi ~5 giây → phải xuất hiện file `LINK.update.xlam` trong
-   `%APPDATA%\Microsoft\Excel\XLSTART\`
-2. Đóng **toàn bộ** cửa sổ Excel, chờ vài giây → file đó biến mất, và
-   `%TEMP%\link_addin_update.log` có dòng `OK=1`
-3. Mở lại Excel → thấy thay đổi bạn vừa phát hành
+1. Mở Excel, đợi ~5 giây → hiện hộp thoại *"Đã có bản cập nhật mới cho add-in LINK"*
+2. Bấm **OK** → Excel tự đóng, vài giây sau tự mở lại
+3. Kiểm tra `%TEMP%\link_addin_update.log` có dòng `OK=1`, và ribbon LINK đã có
+   thay đổi bạn vừa phát hành
+
+> Muốn kiểm tra lại mà không phải khởi động lại Excel: `Alt+F8`, gõ
+> `LINK_CheckUpdateNow` rồi bấm Run. Nó chạy đúng luồng kiểm tra đó ngay lập tức.
 
 ## B4. Quay về bản cũ
 
@@ -242,8 +260,9 @@ chạy một lần. Từ đó về sau họ tự nhận mọi bản mới.
 |---|---|
 | Cài xong nhưng không thấy tab LINK | Đóng hết Excel rồi mở lại. Vẫn không có → chạy lại `install.bat`. |
 | Ribbon LINK hiện 2 lần | Máy còn bản cài kiểu cũ. Gỡ ở `File → Options → Add-ins → Manage: Excel Add-ins → Go`, bỏ tick, xoá file cũ. |
-| Máy không nhận bản mới, cũng không báo lỗi | Chạy lại `install.bat` để ép lấy bản mới nhất. Vẫn không được → máy có chặn `raw.githubusercontent.com`? Thử mở link đó bằng trình duyệt. |
-| Có `LINK.update.xlam` nhưng file không được thay | Chưa đóng hết Excel. Đóng **toàn bộ** cửa sổ Excel rồi chờ vài giây. |
+| Máy không hỏi cập nhật, cũng không báo lỗi | `Alt+F8` → chạy `LINK_CheckUpdateNow` để kiểm tra ngay. Vẫn im thì chạy lại `install.bat` để ép lấy bản mới nhất. Vẫn không được → máy có chặn `raw.githubusercontent.com`? Thử mở link đó bằng trình duyệt. |
+| Bấm OK nhưng Excel không đóng | Còn hộp thoại Excel hỏi chỗ lưu cho file chưa từng lưu. Trả lời hộp thoại đó là Excel đóng và cập nhật chạy tiếp. |
+| Excel đã đóng nhưng file không được thay | Còn cửa sổ Excel khác đang mở. Đóng **toàn bộ** rồi chờ vài giây. Quá ~10 phút thì script bỏ cuộc, ghi `TIMEOUT` vào log và add-in sẽ hỏi lại ở lần mở Excel sau. |
 | `link_addin_update.log` ghi `OK=0` | Thư mục add-in không có quyền ghi. Chạy lại `install.bat`. |
 | Excel mở chậm hẳn ~1–3 giây | Máy thiếu .NET Framework nên add-in phải dùng cách tính checksum chậm hơn. |
 | Không máy nào cập nhật được | `version.txt` lệch với `LINK.xlam`. Phát hành lại theo B2 là tự khớp. |

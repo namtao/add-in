@@ -59,13 +59,17 @@ class CompoundFile:
             if s in (ENDOFCHAIN, FREESECT):
                 continue
             raw = self._sector(s)
-            self.fat.extend(struct.unpack_from("<%dI" % (self.sector_size // 4), raw, 0))
+            self.fat.extend(
+                struct.unpack_from("<%dI" % (self.sector_size // 4), raw, 0)
+            )
 
         self.mini_fat = []
         sector = first_mini_fat
         while sector not in (ENDOFCHAIN, FREESECT):
             raw = self._sector(sector)
-            self.mini_fat.extend(struct.unpack_from("<%dI" % (self.sector_size // 4), raw, 0))
+            self.mini_fat.extend(
+                struct.unpack_from("<%dI" % (self.sector_size // 4), raw, 0)
+            )
             sector = self.fat[sector]
 
         self.entries = self._read_directory(first_dir)
@@ -74,7 +78,7 @@ class CompoundFile:
 
     def _sector(self, n):
         off = (n + 1) * self.sector_size
-        return self.data[off:off + self.sector_size]
+        return self.data[off : off + self.sector_size]
 
     def _read_chain(self, start, size):
         out = bytearray()
@@ -89,7 +93,7 @@ class CompoundFile:
         sector = start
         while sector not in (ENDOFCHAIN, FREESECT) and len(out) < size:
             off = sector * self.mini_sector_size
-            out.extend(self.mini_stream[off:off + self.mini_sector_size])
+            out.extend(self.mini_stream[off : off + self.mini_sector_size])
             sector = self.mini_fat[sector]
         return bytes(out[:size])
 
@@ -101,19 +105,21 @@ class CompoundFile:
             sector = self.fat[sector]
         entries = []
         for off in range(0, len(raw), 128):
-            chunk = raw[off:off + 128]
+            chunk = raw[off : off + 128]
             if len(chunk) < 128:
                 break
             name_len = struct.unpack_from("<H", chunk, 64)[0]
             if name_len < 2:
                 continue
-            name = chunk[:name_len - 2].decode("utf-16-le", "replace")
-            entries.append({
-                "name": name,
-                "type": chunk[66],
-                "start": struct.unpack_from("<I", chunk, 116)[0],
-                "size": struct.unpack_from("<Q", chunk, 120)[0],
-            })
+            name = chunk[: name_len - 2].decode("utf-16-le", "replace")
+            entries.append(
+                {
+                    "name": name,
+                    "type": chunk[66],
+                    "start": struct.unpack_from("<I", chunk, 116)[0],
+                    "size": struct.unpack_from("<Q", chunk, 120)[0],
+                }
+            )
         return entries
 
     def stream(self, name):
@@ -179,7 +185,7 @@ def module_text_offset(dir_text, module_name):
     pos = dir_text.find(needle)
     if pos < 0:
         return None
-    window = dir_text[pos:pos + 512]
+    window = dir_text[pos : pos + 512]
     m = window.find(struct.pack("<HI", 0x0031, 4))
     if m < 0:
         return None
@@ -197,12 +203,28 @@ def module_source(cfb, dir_text, module_name):
 
 
 def strip_comments(src):
+    """Bo chu thich VBA, nhung giu nguyen dau nhay don nam ben trong chuoi.
+
+    Khong duoc cat tho tai dau ' dau tien cua dong: ma nguon co nhung dong nhu
+    "'" & ThisWorkbook.Name & "'!modAutoUpdate.CheckForUpdate"
+    va cat o do se vut di dung phan can kiem tra. Vi vay phai bam theo trang
+    thai dang-o-trong-chuoi. Trong VBA khong co ky tu escape: dau " doi dang
+    moi lan gap, con "" long nhau doi hai lan nen ket qua van dung.
+    """
     out = []
     for line in src.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("'") or stripped.lower().startswith("rem "):
+        in_str = False
+        cut = None
+        for i, ch in enumerate(line):
+            if ch == '"':
+                in_str = not in_str
+            elif ch == "'" and not in_str:
+                cut = i
+                break
+        code = line if cut is None else line[:cut]
+        if code.strip().lower().startswith("rem "):
             continue
-        out.append(line.split("'")[0] if "'" in line else line)
+        out.append(code)
     return "\n".join(out)
 
 
@@ -262,6 +284,18 @@ def validate(path):
         body = strip_comments(auto)
         if "Sub CheckForUpdate" not in body:
             errors.append("Module modAutoUpdate co nhung thieu Sub CheckForUpdate.")
+        # Application.OnTime phan giai ten thu tuc theo workbook dang active luc
+        # timer ban, khong theo workbook goi no. Thieu tien to "'<ten file>'!"
+        # thi lich hen bi bo qua trong im lang va bo tu cap nhat khong bao gio
+        # chay - dung loi da lam ban cu chet lang. Chan tai day.
+        if not re.search(
+            r"Application\.OnTime[\s\S]{0,400}?'!modAutoUpdate\.CheckForUpdate", body
+        ):
+            errors.append(
+                "Loi goi Application.OnTime trong modAutoUpdate thieu tien to ten "
+                "workbook, nen CheckForUpdate se khong bao gio chay. Ten macro phai "
+                'co dang "\'" & ThisWorkbook.Name & "\'!modAutoUpdate.CheckForUpdate".'
+            )
         if EXPECTED_RAW_BASE not in auto:
             errors.append(
                 "modAutoUpdate dang tro toi mot dia chi khac, khong phai repo nay "
